@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DraftCut · 分镜编排手稿</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Architects+Daughter&display=swap');
+  :root{
+    --ink:#2b2622; --ink-soft:#6f675e; --paper:#f4ecd8; --paper2:#efe5cb;
+    --accent:#d8572a; --accent2:#3a7d6e; --line:#3a342d;
+    --hook:#d8572a; --intro:#3a7d6e; --build:#c79a23; --climax:#b5396b; --outro:#5a6c9c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Gaegu','Architects Daughter','PingFang SC',cursive;color:var(--ink);
+    background:var(--paper);
+    background-image:radial-gradient(circle at 20% 10%,rgba(0,0,0,.03) 0,transparent 40%),
+      repeating-linear-gradient(0deg,transparent,transparent 27px,rgba(58,52,45,.06) 28px);
+    padding:28px 24px 80px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:38px;margin:0 0 4px;letter-spacing:1px}
+  h1 .dot{color:var(--accent)}
+  .brief{font-size:20px;color:var(--ink-soft);margin:0 0 8px}
+  .meta{display:flex;gap:18px;font-size:17px;flex-wrap:wrap;margin-bottom:14px}
+  .meta b{color:var(--accent)}
+  .music{border:2.5px dashed var(--line);border-radius:12px 9px 13px 8px;background:var(--paper2);
+    padding:8px 14px;margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:18px}
+  .music .tag{background:var(--accent);color:#fff;border:2px solid var(--line);border-radius:8px 6px 8px 6px;
+    padding:1px 10px;font-weight:700;transform:rotate(-1.5deg)} .music b{color:var(--accent)} .music .cand{font-size:15px;color:var(--ink-soft)}
+  .stage{position:relative;border:3px solid var(--line);border-radius:14px 10px 16px 9px;background:#1c1813;
+    box-shadow:4px 5px 0 rgba(58,52,45,.2);overflow:hidden;margin-bottom:8px}
+  .stage video{display:block;width:100%;max-height:380px;background:#1c1813}
+  .stage .ph{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;height:240px;color:#c7b89a;font-size:19px;text-align:center;padding:20px}
+  .cap{position:absolute;left:0;right:0;bottom:0;padding:9px 14px;font-size:17px;color:#f6eede;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent)}
+  .cap b{color:#ffcaa6}
+  .beatbar{position:relative;height:22px;margin:0 0 10px;border:2px solid var(--line);border-radius:8px;background:var(--paper2);overflow:hidden}
+  .beatbar .tick{position:absolute;top:0;bottom:0;width:2px;background:var(--ink-soft);opacity:.45}
+  .beatbar .tick.on{background:var(--accent);opacity:1;box-shadow:0 0 7px var(--accent);width:3px}
+  .beatbar .ph2{position:absolute;top:0;bottom:0;width:2px;background:var(--accent2);opacity:.9}
+  .controls{display:flex;gap:10px;align-items:center;margin:0 0 14px;font-size:17px;flex-wrap:wrap}
+  .btn{font-family:inherit;font-size:18px;cursor:pointer;background:#fbf6e7;color:var(--ink);border:2.5px solid var(--line);
+    border-radius:10px 7px 11px 6px;padding:4px 14px;box-shadow:2px 3px 0 rgba(58,52,45,.18)}
+  .btn:active{transform:translate(2px,3px);box-shadow:none}
+  .btn.primary{background:var(--accent);color:#fff}
+  .hint{color:var(--ink-soft);font-size:15px}
+  .tlwrap{border:3px solid var(--line);border-radius:14px 10px 16px 9px;background:#fbf6e7;
+    box-shadow:4px 5px 0 rgba(58,52,45,.18);padding:6px 8px}
+  svg#tl{display:block;width:100%;height:auto;touch-action:none}
+  svg#tl text{font-family:'Gaegu','PingFang SC',cursive;fill:var(--ink)}
+  svg#tl .clip{cursor:grab}
+  svg#tl .clip:active{cursor:grabbing}
+  svg#tl .tname{font-size:15px;fill:var(--ink-soft);font-weight:700}
+  svg#tl .clab{font-size:14px;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:.6px}
+  svg#tl .rlab{font-size:12px;fill:var(--ink-soft)}
+  svg#tl .emolab{font-size:13px;fill:var(--accent)}
+  footer{margin-top:30px;color:var(--ink-soft);font-size:15px;text-align:center}
+  svg.defs{position:absolute;width:0;height:0}
+</style>
+</head>
+<body>
+<svg class="defs" xmlns="http://www.w3.org/2000/svg"><filter id="rough">
+  <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/></filter></svg>
+
+<div class="wrap">
+  <h1>DraftCut<span class="dot">.</span> 分镜编排手稿</h1>
+  <p class="brief" id="brief"></p>
+  <div class="meta" id="meta"></div>
+  <div class="music wobble" id="music"></div>
+
+  <div class="stage">
+    <video id="player" playsinline preload="metadata" muted></video>
+    <audio id="bgm" preload="auto"></audio>
+    <div class="ph" id="ph">▶ 点「播放全片」或时间线上「本线」的片段开始预览<br><small>（按编排顺序播各镜头入出点；有音乐则按拍同步，视频静音）</small></div>
+    <div class="cap" id="cap"></div>
+  </div>
+  <div class="beatbar" id="beatbar" title="音乐节拍"></div>
+  <div class="controls">
+    <button class="btn primary" id="playAll">▶ 播放全片</button>
+    <button class="btn" id="stop">⏹ 停止</button>
+    <button class="btn" id="audBtn">🎵 听音乐</button>
+    <button class="btn" id="exportBtn">⬇ 导出 montage.json</button>
+    <span class="hint">时间线：拖动片段移动 / 拖右缘裁剪 · 点「本线」片段试播</span>
+  </div>
+
+  <div class="tlwrap"><svg id="tl" xmlns="http://www.w3.org/2000/svg"></svg></div>
+
+  <footer>DraftCut · 手绘多轨编排，不渲染成片 · 导出 FCPXML / 剪映工程后在 PR/剪映里继续做</footer>
+</div>
+
+<script>
+/* build-storyboard.mjs 会替换下面这段为真实数据 */
+const DATA = /*__DATA_START__*/ {
+  "brief":"成都美食 vlog · 烟火气 · 竖屏","aspect":"9:16","targetDuration":10,"style":"快节奏烟火气 vlog",
+  "music":{"title":"City Lofi Night","bpm":96,"mood":"lofi","src":"media/bgm.mp3","beats":[0,0.625,1.25,1.875,2.5,3.125,3.75,4.375,5,5.625,6.25,6.875,7.5,8.125,8.75,9.375],
+    "beatSync":{"every":1}},
+  "tempoCurve":[0.3,0.5,0.6,0.85,1.0,0.7,0.9,0.4],
+  "sequence":[
+    {"order":1,"role":"hook","src":"media/hotpot.mp4","in":1.2,"out":3.0,"dur":1.8,"thumb":"thumbs/s_004.jpg","transitionOut":"whip","rationale":"红油火锅特写上钩"},
+    {"order":2,"role":"intro","src":"media/street.mp4","in":0,"out":2.4,"dur":2.4,"thumb":"thumbs/s_011.jpg","transitionOut":"cut","rationale":"街市全景定位"},
+    {"order":3,"role":"build","src":"media/wok.mp4","in":0.5,"out":2.0,"dur":1.5,"thumb":"thumbs/s_007.jpg","transitionOut":"cut","rationale":"颠勺推进"},
+    {"order":4,"role":"climax","src":"media/skewer.mp4","in":0.8,"out":2.6,"dur":1.8,"thumb":"thumbs/s_019.jpg","transitionOut":"dissolve","rationale":"串串拉丝高光"},
+    {"order":5,"role":"outro","src":"media/night.mp4","in":3.0,"out":5.5,"dur":2.5,"thumb":"thumbs/s_002.jpg","transitionOut":"fade","rationale":"灯光虚化收尾"}
+  ],
+  "tracks":[
+    {"id":"main","name":"本线","kind":"video","fromSequence":true},
+    {"id":"plot","name":"主线","kind":"note","color":"#3a7d6e","clips":[{"start":0,"dur":4.2,"label":"现代化 vs 家庭"},{"start":5.5,"dur":4.5,"label":"家的看法"}]},
+    {"id":"sub","name":"支线","kind":"note","color":"#b5396b","clips":[{"start":1.8,"dur":2.4,"label":"感受"},{"start":6.0,"dur":1.8,"label":"孤独"}]},
+    {"id":"bgm","name":"Bgm","kind":"audio","color":"#5a6c9c","clips":[{"start":0,"dur":10,"label":"lofi train · 渐弱"}]},
+    {"id":"sub2","name":"支线2","kind":"note","color":"#c79a23","clips":[{"start":0.5,"dur":3.0,"label":"正经/落魄相处"},{"start":7.0,"dur":3.0,"label":"大城市选择"}]},
+    {"id":"emo","name":"情感线","kind":"arc","color":"#d8572a","points":[{"t":0,"v":0.3,"label":"平静"},{"t":2,"v":0.6,"label":"好奇"},{"t":4.5,"v":0.25,"label":"孤独"},{"t":7.2,"v":0.95,"label":"感动"},{"t":10,"v":0.5,"label":"释然"}]}
+  ]
+} /*__DATA_END__*/;
+
+const SVGNS="http://www.w3.org/2000/svg";
+const mk=(n,a={})=>{const e=document.createElementNS(SVGNS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}.${String(Math.round(s%1*10))}`;
+const roleColor={hook:'#d8572a',intro:'#3a7d6e',build:'#c79a23',climax:'#b5396b',outro:'#5a6c9c'};
+
+// ---- 构建模型 ----
+const seq=(DATA.sequence||[]).filter(s=>s.enabled!==false);
+let acc=0;
+const mainClips=seq.map((s,i)=>{const d=s.dur||((s.out||0)-(s.in||0))||2;const c={start:acc,dur:d,role:s.role,label:s.role,src:s.src,in:s.in||0,out:s.out!=null?s.out:(s.in||0)+d,thumb:s.thumb,rationale:s.rationale,transitionOut:s.transitionOut,_seq:i};acc+=d;return c;});
+const tracksDef=(DATA.tracks&&DATA.tracks.length)?DATA.tracks:[{id:"main",name:"本线",kind:"video",fromSequence:true}];
+const model=tracksDef.map(t=>{
+  if(t.kind==='video'||t.fromSequence) return {id:t.id,name:t.name,kind:'video',color:t.color,clips:mainClips};
+  if(t.kind==='arc') return {id:t.id,name:t.name,kind:'arc',color:t.color||'#d8572a',points:(t.points||[]).map(p=>({...p}))};
+  return {id:t.id,name:t.name,kind:t.kind,color:t.color,clips:(t.clips||[]).map(c=>({...c}))};
+});
+const music=DATA.music||{};
+const hasMusic=!!music.src;
+
+function totalDur(){
+  let m=mainClips.reduce((a,c)=>Math.max(a,c.start+c.dur),0);
+  model.forEach(t=>{(t.clips||[]).forEach(c=>m=Math.max(m,c.start+c.dur));(t.points||[]).forEach(p=>m=Math.max(m,p.t));});
+  return Math.max(m, DATA.targetDuration||0, 1);
+}
+
+// ---- 头部 ----
+document.getElementById('brief').textContent='“'+(DATA.brief||'')+'”';
+function renderMeta(){
+  const tot=mainClips.reduce((a,c)=>a+c.dur,0);
+  document.getElementById('meta').innerHTML=
+    `<span>风格 <b>${DATA.style||'-'}</b></span><span>画幅 <b>${DATA.aspect||'-'}</b></span>`+
+    `<span>目标 <b>${DATA.targetDuration||'-'}s</b></span><span>本线 <b>${tot.toFixed(1)}s</b></span>`+
+    `<span>镜头 <b>${mainClips.length}</b> · 轨道 <b>${model.length}</b></span>`;
+}
+renderMeta();
+(function(){const el=document.getElementById('music');
+  if(!music||(!music.title&&!music.src)){el.style.display='none';return;}
+  if(hasMusic){const sync=music.beatSync?` · 已卡点(每${music.beatSync.every||1}拍)`:'';
+    el.innerHTML=`<span class="tag">♪ 已加音乐</span><span><b>${(music.src||'').split('/').pop()}</b>${music.bpm?` · ${music.bpm} BPM`:''}${sync}</span><span class="cand">播放＝按拍同步预览（视频静音，点🔊听原片）</span>`;
+  } else {const cands=(music.candidates||[]).map(c=>`${c.title}${c.bpm?` · ${c.bpm}`:''}`).join(' / ');
+    el.innerHTML=`<span class="tag">♪ 推荐配乐</span><span><b>${music.title||'-'}</b>${music.bpm?` · ${music.bpm} BPM`:''}${music.mood?` · ${music.mood}`:''}</span>`+(cands?`<span class="cand">备选：${cands}</span>`:'')+`<span class="cand">（仅推荐，加音乐后可卡点）</span>`;}
+})();
+
+// ---- 节拍条 ----
+const beatbar=document.getElementById('beatbar');
+const beatEls=[];
+function renderBeats(){
+  beatbar.innerHTML=''; beatEls.length=0;
+  const T=totalDur(); const beats=(music.beats||[]).filter(b=>b<=T+0.02);
+  if(!beats.length){ beatbar.style.display='none'; return; }
+  beatbar.style.display='block';
+  beats.forEach(t=>{const d=document.createElement('div');d.className='tick';d.style.left=(t/T*100)+'%';beatbar.appendChild(d);beatEls.push({t,el:d});});
+  const p2=document.createElement('div');p2.className='ph2';p2.id='ph2';p2.style.left='0%';beatbar.appendChild(p2);
+}
+renderBeats();
+
+// ---- SVG 时间线 ----
+const W=1100,PADL=10,GUT=86,plotL=PADL,RULER=24;
+const plotR=W-GUT-6, plotW=plotR-plotL;
+const svg=document.getElementById('tl');
+const laneH=k=>k==='video'?58:k==='arc'?72:34;
+let lanes=[], H=0, total=10;
+const t2x=t=>plotL+(t/total)*plotW;
+function trunc(s,w){const max=Math.max(1,Math.floor((w-10)/14));return s&&s.length>max?s.slice(0,max-1)+'…':(s||'');}
+
+function render(){
+  total=totalDur();
+  let y=RULER+8; lanes=model.map(t=>{const h=laneH(t.kind);const o={t,top:y,h};y+=h+8;return o;}); H=y+6;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.innerHTML='';
+  // 时间标尺
+  const ruler=mk('g',{filter:'url(#rough)'});
+  ruler.appendChild(mk('line',{x1:plotL,y1:RULER,x2:plotR,y2:RULER,stroke:'#3a342d','stroke-width':2}));
+  svg.appendChild(ruler);
+  const step = total<=12?1:(total<=30?2:Math.ceil(total/12));
+  for(let t=0;t<=total+1e-6;t+=step){const x=t2x(t);
+    const tl=mk('line',{x1:x,y1:RULER-5,x2:x,y2:RULER,stroke:'#3a342d','stroke-width':2,filter:'url(#rough)'});svg.appendChild(tl);
+    const lb=mk('text',{x:x+2,y:RULER-8,class:'rlab'});lb.textContent=t+'s';svg.appendChild(lb);}
+  // 各轨
+  lanes.forEach(L=>{
+    // 轨底线 + 名称
+    svg.appendChild(mk('line',{x1:plotL,y1:L.top+L.h,x2:plotR,y2:L.top+L.h,stroke:'#3a342d','stroke-width':1.5,'stroke-opacity':.5,filter:'url(#rough)'}));
+    const nm=mk('text',{x:plotR+8,y:L.top+L.h/2+5,class:'tname'});nm.textContent=L.t.name;svg.appendChild(nm);
+    if(L.t.kind==='arc'){ drawArc(L); return; }
+    (L.t.clips||[]).forEach((c,idx)=>drawClip(L,c,idx));
+  });
+  // 播放头
+  const ph=mk('line',{id:'phLine',x1:plotL,y1:RULER,x2:plotL,y2:H-6,stroke:'#d8572a','stroke-width':2,'stroke-dasharray':'4 3'});
+  svg.appendChild(ph);
+  renderBeats(); renderMeta();
+}
+function drawClip(L,c,idx){
+  const x=t2x(c.start), w=Math.max(8,(c.dur/total)*plotW);
+  const g=mk('g',{class:'clip','data-tid':L.t.id,'data-idx':idx});
+  const fill=L.t.kind==='video'?(roleColor[c.role]||'#7d5fc7'):(c.color||L.t.color||'#888');
+  g.appendChild(mk('rect',{x,y:L.top+4,width:w,height:L.h-8,rx:6,fill,'fill-opacity':.85,stroke:'#3a342d','stroke-width':2,filter:'url(#rough)'}));
+  if(L.t.kind==='video'&&c.thumb){const s=L.h-12;g.appendChild(mk('image',{href:c.thumb,x:x+3,y:L.top+6,width:Math.min(s,w-6),height:s,preserveAspectRatio:'xMidYMid slice'}));}
+  const tx=mk('text',{x:x+ (L.t.kind==='video'&&c.thumb?(L.h-4):8), y:L.top+L.h/2+5, class:'clab'});
+  tx.textContent=trunc(c.label||c.role||'', w-(L.t.kind==='video'&&c.thumb?(L.h-4):8));
+  g.appendChild(tx);
+  // 右缘裁剪手柄
+  g.appendChild(mk('rect',{x:x+w-7,y:L.top+4,width:7,height:L.h-8,class:'handle',fill:'#000','fill-opacity':0,style:'cursor:ew-resize'}));
+  svg.appendChild(g);
+}
+function drawArc(L){
+  const pts=(L.t.points||[]).slice().sort((a,b)=>a.t-b.t); if(pts.length<2){return;}
+  const X=p=>t2x(p.t), Y=p=>L.top+L.h-6-(p.v||0)*(L.h-16);
+  let d='M '+X(pts[0]).toFixed(1)+' '+Y(pts[0]).toFixed(1);
+  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];const mx=(X(a)+X(b))/2;d+=` C ${mx.toFixed(1)} ${Y(a).toFixed(1)}, ${mx.toFixed(1)} ${Y(b).toFixed(1)}, ${X(b).toFixed(1)} ${Y(b).toFixed(1)}`;}
+  svg.appendChild(mk('path',{d,fill:'none',stroke:L.t.color||'#d8572a','stroke-width':3,'stroke-linecap':'round',filter:'url(#rough)'}));
+  pts.forEach(p=>{svg.appendChild(mk('circle',{cx:X(p),cy:Y(p),r:4,fill:'#3a7d6e'}));
+    if(p.label){const tb=mk('text',{x:X(p)+5,y:Y(p)-6,class:'emolab'});tb.textContent=p.label;svg.appendChild(tb);}});
+}
+render();
+
+// ---- 拖拽微调 ----
+let drag=null;
+svg.addEventListener('pointerdown',e=>{
+  const g=e.target.closest('.clip'); if(!g) return;
+  const L=lanes.find(l=>l.t.id===g.dataset.tid); const c=L.t.clips[+g.dataset.idx];
+  drag={c,L,handle:e.target.classList.contains('handle'),x0:e.clientX,t0:c.start,d0:c.dur,moved:false};
+  svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener('pointermove',e=>{
+  if(!drag) return;
+  const r=svg.getBoundingClientRect();
+  const dt=((e.clientX-drag.x0)*(W/r.width))/plotW*total;
+  if(Math.abs(e.clientX-drag.x0)>3) drag.moved=true;
+  if(drag.handle){ drag.c.dur=Math.max(0.2,Math.round((drag.d0+dt)*100)/100); }
+  else if(drag.L.t.kind!=='video'){ drag.c.start=Math.max(0,Math.round((drag.t0+dt)*100)/100); }
+  if(drag.moved) render();
+});
+svg.addEventListener('pointerup',e=>{
+  if(!drag) return;
+  if(!drag.moved && drag.L.t.kind==='video') jumpTo(drag.c._seq);
+  if(drag.L.t.kind==='video'){ // 本线裁剪后回写 sequence 时长
+    const c=drag.c; const s=seq[c._seq]; if(s){ s.dur=c.dur; s.out=(s.in||0)+c.dur; }
+  }
+  drag=null;
+});
+
+// ---- 导出 montage.json（回写微调） ----
+document.getElementById('exportBtn').onclick=()=>{
+  const out=JSON.parse(JSON.stringify(DATA));
+  // 本线排序回写 sequence
+  const mains=mainClips.slice().sort((a,b)=>a.start-b.start);
+  out.sequence=mains.map((c,i)=>{const s=JSON.parse(JSON.stringify(seq[c._seq]));s.order=i+1;s.dur=c.dur;s.in=c.in;s.out=c.out;return s;});
+  // 其它轨回写
+  out.tracks=tracksDef.map(td=>{const m=model.find(x=>x.id===td.id);if(!m)return td;
+    if(m.kind==='video')return td;
+    if(m.kind==='arc')return {...td,points:m.points};
+    return {...td,clips:m.clips};});
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='montage.json';a.click();
+};
+
+// ---- 预览播放器（video / music 双模） ----
+const player=document.getElementById('player'),cap=document.getElementById('cap'),ph=document.getElementById('ph'),bgm=document.getElementById('bgm');
+let curIdx=-1, mode=hasMusic?'music':'video', raf=null, bgmReady=false;
+player.muted=(mode==='music');
+function setPlayhead(pos){const l=document.getElementById('phLine');if(l){const x=t2x(Math.min(pos,total));l.setAttribute('x1',x);l.setAttribute('x2',x);}
+  const p2=document.getElementById('ph2');if(p2)p2.style.left=(Math.min(pos,total)/total*100)+'%';
+  let on=-1;for(let k=0;k<beatEls.length;k++){if(beatEls[k].t<=pos+0.06)on=k;else break;}beatEls.forEach((b,k)=>b.el.classList.toggle('on',k===on));}
+function showClip(i){const c=mainClips[i];if(!c)return;curIdx=i;
+  cap.innerHTML=`#${i+1} <b>${c.role}</b> · ${fmt(c.in)}→${fmt(c.out)} · ${c.rationale||''}`;
+  ph.style.display='none';player.style.display='block';
+  if(!c.src){onNoSrc(c);return;} player.src=c.src;player.dataset.in=c.in||0;player.load();}
+player.addEventListener('loadedmetadata',()=>{try{player.currentTime=Number(player.dataset.in||0);}catch(e){}player.play().catch(()=>{});});
+player.addEventListener('error',()=>onNoSrc(mainClips[curIdx]));
+function onNoSrc(c){player.style.display='none';ph.style.display='flex';ph.innerHTML='（样例：源文件 '+((c&&c.src)||'')+' 不存在，换成你的素材路径即可播放）';}
+player._chain=false;
+player.addEventListener('timeupdate',()=>{
+  if(mode!=='video'||curIdx<0)return;const c=mainClips[curIdx];
+  setPlayhead(c.start+(player.currentTime-(c.in||0)));
+  if(player.currentTime>=(c.out!=null?c.out:1e9)){ if(player._chain&&mainClips[curIdx+1])showClip(curIdx+1); else player.pause(); }
+});
+function tick(){if(mode!=='music')return;const pos=bgm.currentTime;setPlayhead(pos);
+  let i=mainClips.findIndex(c=>pos>=c.start&&pos<c.start+c.dur);if(i>=0&&i!==curIdx)showClip(i);
+  if(pos>=total){stopAll();return;}raf=requestAnimationFrame(tick);}
+function playAll(){if(mode==='music'&&bgmReady){showClip(0);bgm.currentTime=0;bgm.play().catch(()=>{});cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}
+  else{mode='video';player.muted=false;player._chain=true;showClip(0);}}
+function jumpTo(i){document.querySelector('.stage').scrollIntoView({behavior:'smooth',block:'center'});
+  if(mode==='music'&&bgmReady){bgm.currentTime=mainClips[i].start;if(bgm.paused){bgm.play().catch(()=>{});cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}showClip(i);}
+  else{player._chain=false;showClip(i);}}
+function stopAll(){player.pause();bgm.pause();cancelAnimationFrame(raf);}
+document.getElementById('playAll').onclick=playAll;
+document.getElementById('stop').onclick=stopAll;
+const audBtn=document.getElementById('audBtn');if(!hasMusic)audBtn.style.display='none';
+audBtn.onclick=()=>{mode=(mode==='music')?'video':'music';player.muted=(mode==='music');bgm.muted=(mode!=='music');audBtn.textContent=(mode==='music')?'🎵 听音乐':'🔊 听原片';};
+if(hasMusic){bgm.src=music.src;bgm.addEventListener('canplay',()=>{bgmReady=true;});bgm.addEventListener('error',()=>{bgmReady=false;});}
+player.style.display='none';ph.style.display='flex';
+</script>
+</body>
+</html>

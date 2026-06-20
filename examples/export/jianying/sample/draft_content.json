@@ -1,0 +1,204 @@
+{
+  "id": "D732AEC7-243F-4ECC-8AE6-9D20EEB086CC",
+  "draft_fold_path": "/Users/mac/Code/montage/examples/export/jianying/sample",
+  "duration": 10000000,
+  "canvas_config": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16"
+  },
+  "materials": {
+    "videos": [
+      {
+        "id": "539000A3-C7EE-4809-8C1C-C63F4791193C",
+        "type": "video",
+        "path": "/Users/mac/Code/montage/media/hotpot.mp4",
+        "material_name": "hotpot.mp4",
+        "duration": 1800000,
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "id": "D17877C6-FE0A-4628-BA5B-53083B93D28D",
+        "type": "video",
+        "path": "/Users/mac/Code/montage/media/street.mp4",
+        "material_name": "street.mp4",
+        "duration": 2400000,
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "id": "E97AAD23-A75B-4830-947F-BC5839B6B8C4",
+        "type": "video",
+        "path": "/Users/mac/Code/montage/media/wok.mp4",
+        "material_name": "wok.mp4",
+        "duration": 1500000,
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "id": "55503343-56B3-4070-8CDA-516A9B1A540C",
+        "type": "video",
+        "path": "/Users/mac/Code/montage/media/skewer.mp4",
+        "material_name": "skewer.mp4",
+        "duration": 1800000,
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "id": "74922C4F-E78D-47F3-ACB4-BD03DC88E2B4",
+        "type": "video",
+        "path": "/Users/mac/Code/montage/media/night.mp4",
+        "material_name": "night.mp4",
+        "duration": 2500000,
+        "width": 1920,
+        "height": 1080
+      }
+    ],
+    "audios": [],
+    "texts": [],
+    "stickers": []
+  },
+  "tracks": [
+    {
+      "id": "3C6A6E7C-864B-4199-9D30-11A339E43B09",
+      "type": "video",
+      "segments": [
+        {
+          "id": "D8CDB1EF-D578-41FE-A6DA-85DF997E223F",
+          "material_id": "539000A3-C7EE-4809-8C1C-C63F4791193C",
+          "source_timerange": {
+            "start": 1200000,
+            "duration": 1800000
+          },
+          "target_timerange": {
+            "start": 0,
+            "duration": 1800000
+          },
+          "speed": 1,
+          "volume": 1,
+          "visible": true,
+          "extra_montage": {
+            "role": "hook",
+            "rationale": "红油火锅翻滚特写，开场 2 秒直接上钩，热气最抓人",
+            "transitionOut": "whip"
+          }
+        },
+        {
+          "id": "48DA409F-50F7-46D4-AB78-463F6E3C584B",
+          "material_id": "D17877C6-FE0A-4628-BA5B-53083B93D28D",
+          "source_timerange": {
+            "start": 0,
+            "duration": 2400000
+          },
+          "target_timerange": {
+            "start": 1800000,
+            "duration": 2400000
+          },
+          "speed": 1,
+          "volume": 1,
+          "visible": true,
+          "extra_montage": {
+            "role": "intro",
+            "rationale": "街市全景定位空间，让观众知道在哪",
+            "transitionOut": "cut"
+          }
+        },
+        {
+          "id": "41B89D62-677D-4FB6-8D93-6C83B627C6BC",
+          "material_id": "E97AAD23-A75B-4830-947F-BC5839B6B8C4",
+          "source_timerange": {
+            "start": 500000,
+            "duration": 1500000
+          },
+          "target_timerange": {
+            "start": 4200000,
+            "duration": 1500000
+          },
+          "speed": 1,
+          "volume": 1,
+          "visible": true,
+          "extra_montage": {
+            "role": "build",
+            "rationale": "师傅颠勺的手部动作，节奏推进",
+            "transitionOut": "cut"
+          }
+        },
+        {
+          "id": "1E5C083C-B424-4F5E-84F2-BE170DBB7C0F",
+          "material_id": "55503343-56B3-4070-8CDA-516A9B1A540C",
+          "source_timerange": {
+            "start": 800000,
+            "duration": 1800000
+          },
+          "target_timerange": {
+            "start": 5700000,
+            "duration": 1800000
+          },
+          "speed": 1,
+          "volume": 1,
+          "visible": true,
+          "extra_montage": {
+            "role": "climax",
+            "rationale": "夹起串串拉丝瞬间，落在第 5 个节拍上，全片高光",
+            "transitionOut": "dissolve"
+          }
+        },
+        {
+          "id": "7F4AAB75-EF0F-4D57-83AA-D6B3F843139A",
+          "material_id": "74922C4F-E78D-47F3-ACB4-BD03DC88E2B4",
+          "source_timerange": {
+            "start": 3000000,
+            "duration": 2500000
+          },
+          "target_timerange": {
+            "start": 7500000,
+            "duration": 2500000
+          },
+          "speed": 1,
+          "volume": 1,
+          "visible": true,
+          "extra_montage": {
+            "role": "outro",
+            "rationale": "人物满足表情 + 夜市灯光虚化收尾，留白呼吸",
+            "transitionOut": "fade"
+          }
+        }
+      ]
+    }
+  ],
+  "extra_info": {
+    "tool": "montage",
+    "music_suggestion": {
+      "title": "City Lofi Night",
+      "bpm": 96,
+      "mood": "慵懒 lofi + 轻鼓点",
+      "beats": [
+        0,
+        2.5,
+        5,
+        8.2,
+        12,
+        16.4,
+        21,
+        25.5,
+        29.8
+      ],
+      "candidates": [
+        {
+          "title": "City Lofi Night",
+          "bpm": 96,
+          "mood": "慵懒 lofi",
+          "source": "local"
+        },
+        {
+          "title": "Street Food Groove",
+          "bpm": 102,
+          "mood": "轻快 funk",
+          "source": "local"
+        }
+      ]
+    },
+    "brief": "成都美食 vlog，要有烟火气，30 秒，快节奏，竖屏"
+  }
+}

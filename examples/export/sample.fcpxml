@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+<fcpxml version="1.9">
+  <resources>
+    <format id="r1" name="FFVideoFormat1080p30" frameDuration="1/30s" width="1920" height="1080"/>
+    <asset id="r2" name="hotpot.mp4" src="file:///Users/mac/Code/montage/media/hotpot.mp4" duration="108000/30s" hasVideo="1" hasAudio="1" format="r1"/>
+    <asset id="r3" name="street.mp4" src="file:///Users/mac/Code/montage/media/street.mp4" duration="108000/30s" hasVideo="1" hasAudio="1" format="r1"/>
+    <asset id="r4" name="wok.mp4" src="file:///Users/mac/Code/montage/media/wok.mp4" duration="108000/30s" hasVideo="1" hasAudio="1" format="r1"/>
+    <asset id="r5" name="skewer.mp4" src="file:///Users/mac/Code/montage/media/skewer.mp4" duration="108000/30s" hasVideo="1" hasAudio="1" format="r1"/>
+    <asset id="r6" name="night.mp4" src="file:///Users/mac/Code/montage/media/night.mp4" duration="108000/30s" hasVideo="1" hasAudio="1" format="r1"/>
+  </resources>
+  <library>
+    <event name="montage">
+      <project name="成都美食 vlog，要有烟火气，30 秒，快节奏，竖屏">
+        <sequence format="r1" duration="300/30s" tcStart="0s" tcFormat="NDF">
+          <spine>
+        <asset-clip name="hotpot.mp4" ref="r2" offset="0/30s" start="36/30s" duration="54/30s" format="r1">
+          <note>#1 hook · 红油火锅翻滚特写，开场 2 秒直接上钩，热气最抓人</note>
+        </asset-clip>
+        <asset-clip name="street.mp4" ref="r3" offset="54/30s" start="0/30s" duration="72/30s" format="r1">
+          <note>#2 intro · 街市全景定位空间，让观众知道在哪</note>
+        </asset-clip>
+        <asset-clip name="wok.mp4" ref="r4" offset="126/30s" start="15/30s" duration="45/30s" format="r1">
+          <note>#3 build · 师傅颠勺的手部动作，节奏推进</note>
+        </asset-clip>
+        <asset-clip name="skewer.mp4" ref="r5" offset="171/30s" start="24/30s" duration="54/30s" format="r1">
+          <note>#4 climax · 夹起串串拉丝瞬间，落在第 5 个节拍上，全片高光</note>
+        </asset-clip>
+        <asset-clip name="night.mp4" ref="r6" offset="225/30s" start="90/30s" duration="75/30s" format="r1">
+          <note>#5 outro · 人物满足表情 + 夜市灯光虚化收尾，留白呼吸</note>
+        </asset-clip>
+          </spine>
+        </sequence>
+      </project>
+    </event>
+  </library>
+</fcpxml>

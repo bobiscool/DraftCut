@@ -1,0 +1,227 @@
+{
+  "brief": "成都美食 vlog，要有烟火气，30 秒，快节奏，竖屏",
+  "aspect": "9:16",
+  "targetDuration": 30,
+  "style": "快节奏烟火气 vlog",
+  "music": {
+    "title": "City Lofi Night",
+    "bpm": 96,
+    "mood": "慵懒 lofi + 轻鼓点",
+    "beats": [
+      0.0,
+      2.5,
+      5.0,
+      8.2,
+      12.0,
+      16.4,
+      21.0,
+      25.5,
+      29.8
+    ],
+    "candidates": [
+      {
+        "title": "City Lofi Night",
+        "bpm": 96,
+        "mood": "慵懒 lofi",
+        "source": "local"
+      },
+      {
+        "title": "Street Food Groove",
+        "bpm": 102,
+        "mood": "轻快 funk",
+        "source": "local"
+      }
+    ],
+    "src": "media/bgm.mp3",
+    "beatSync": {
+      "every": 1,
+      "snapped": 5,
+      "totalDuration": 10.0
+    }
+  },
+  "tempoCurve": [
+    0.3,
+    0.5,
+    0.6,
+    0.85,
+    1.0,
+    0.7,
+    0.9,
+    0.4
+  ],
+  "sequence": [
+    {
+      "order": 1,
+      "shotId": "s_004",
+      "role": "hook",
+      "src": "media/hotpot.mp4",
+      "in": 1.2,
+      "out": 3.0,
+      "dur": 1.8,
+      "thumb": "thumbs/s_004.jpg",
+      "transitionOut": "whip",
+      "tempo": "fast",
+      "rationale": "红油火锅翻滚特写，开场 2 秒直接上钩，热气最抓人"
+    },
+    {
+      "order": 2,
+      "shotId": "s_011",
+      "role": "intro",
+      "src": "media/street.mp4",
+      "in": 0.0,
+      "out": 2.4,
+      "dur": 2.4,
+      "thumb": "thumbs/s_011.jpg",
+      "transitionOut": "cut",
+      "tempo": "medium",
+      "rationale": "街市全景定位空间，让观众知道在哪"
+    },
+    {
+      "order": 3,
+      "shotId": "s_007",
+      "role": "build",
+      "src": "media/wok.mp4",
+      "in": 0.5,
+      "out": 2.0,
+      "dur": 1.5,
+      "thumb": "thumbs/s_007.jpg",
+      "transitionOut": "cut",
+      "tempo": "fast",
+      "rationale": "师傅颠勺的手部动作，节奏推进"
+    },
+    {
+      "order": 4,
+      "shotId": "s_019",
+      "role": "climax",
+      "src": "media/skewer.mp4",
+      "in": 0.8,
+      "out": 2.6,
+      "dur": 1.8,
+      "thumb": "thumbs/s_019.jpg",
+      "transitionOut": "dissolve",
+      "tempo": "fast",
+      "rationale": "夹起串串拉丝瞬间，落在第 5 个节拍上，全片高光"
+    },
+    {
+      "order": 5,
+      "shotId": "s_002",
+      "role": "outro",
+      "src": "media/night.mp4",
+      "in": 3.0,
+      "out": 5.5,
+      "dur": 2.5,
+      "thumb": "thumbs/s_002.jpg",
+      "transitionOut": "fade",
+      "tempo": "slow",
+      "rationale": "人物满足表情 + 夜市灯光虚化收尾，留白呼吸"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "main",
+      "name": "本线",
+      "kind": "video",
+      "fromSequence": true
+    },
+    {
+      "id": "plot",
+      "name": "主线",
+      "kind": "note",
+      "color": "#3a7d6e",
+      "clips": [
+        {
+          "start": 0,
+          "dur": 4.2,
+          "label": "现代化 vs 家庭"
+        },
+        {
+          "start": 5.5,
+          "dur": 4.5,
+          "label": "家的看法"
+        }
+      ]
+    },
+    {
+      "id": "sub",
+      "name": "支线",
+      "kind": "note",
+      "color": "#b5396b",
+      "clips": [
+        {
+          "start": 1.8,
+          "dur": 2.4,
+          "label": "感受"
+        },
+        {
+          "start": 6.0,
+          "dur": 1.8,
+          "label": "孤独"
+        }
+      ]
+    },
+    {
+      "id": "bgm",
+      "name": "Bgm",
+      "kind": "audio",
+      "color": "#5a6c9c",
+      "clips": [
+        {
+          "start": 0,
+          "dur": 10,
+          "label": "lofi train · 渐弱"
+        }
+      ]
+    },
+    {
+      "id": "sub2",
+      "name": "支线2",
+      "kind": "note",
+      "color": "#c79a23",
+      "clips": [
+        {
+          "start": 0.5,
+          "dur": 3.0,
+          "label": "正经/落魄相处"
+        },
+        {
+          "start": 7.0,
+          "dur": 3.0,
+          "label": "大城市选择"
+        }
+      ]
+    },
+    {
+      "id": "emo",
+      "name": "情感线",
+      "kind": "arc",
+      "color": "#d8572a",
+      "points": [
+        {
+          "t": 0,
+          "v": 0.3,
+          "label": "平静"
+        },
+        {
+          "t": 2,
+          "v": 0.6,
+          "label": "好奇"
+        },
+        {
+          "t": 4.5,
+          "v": 0.25,
+          "label": "孤独"
+        },
+        {
+          "t": 7.2,
+          "v": 0.95,
+          "label": "感动"
+        },
+        {
+          "t": 10,
+          "v": 0.5,
+          "label": "释然"
+        }
+      ]
+    }
+  ]
+}

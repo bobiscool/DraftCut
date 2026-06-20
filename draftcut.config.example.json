@@ -1,0 +1,72 @@
+{
+  "multimodal": {
+    "enabled": true,
+    "_comment": "配多模态端点便宜可控；enabled=false 则回退当前 agent 直接读图（贵）",
+    "provider": "openai-compatible",
+    "baseUrl": "http://127.0.0.1:15721/v1",
+    "model": "glm-5.2",
+    "apiKeyEnv": "MONTAGE_API_KEY"
+  },
+  "fallback": {
+    "useAgentModel": true,
+    "warnExpensive": true,
+    "_comment": "未配置 multimodal 时由当前 agent 读关键帧，素材多时 token 很贵"
+  },
+  "scan": {
+    "videoExt": [
+      "mp4",
+      "mov",
+      "mkv",
+      "m4v",
+      "avi"
+    ],
+    "imageExt": [
+      "jpg",
+      "jpeg",
+      "png",
+      "heic"
+    ],
+    "audioExt": [
+      "mp3",
+      "m4a",
+      "wav",
+      "flac"
+    ],
+    "sceneThreshold": 0.3
+  },
+  "music": {
+    "libraryDir": "~/Music",
+    "allowOnlineSuggest": true,
+    "_comment": "只做匹配与候选推荐，不下载版权内容",
+    "userTrack": "",
+    "beatSync": {
+      "enabled": true,
+      "every": 1,
+      "minShot": 0.4,
+      "maxShot": 6,
+      "_comment": "用户加音乐后把剪辑点吸附到拍子；every=每几拍一刀(慢风格调大)"
+    },
+    "_detect": "检测节拍优先用 aubio(brew install aubio) 或 librosa(pip install librosa)，否则恒速网格回退"
+  },
+  "library": {
+    "dir": "./library",
+    "userDirs": [
+      "~/.draftcut/library"
+    ],
+    "_comment": "剪辑模板库(提示词库)。dir 内置模板；userDirs 放你自己的自定义模板，同名覆盖"
+  },
+  "export": {
+    "targets": [
+      "fcpxml",
+      "jianying"
+    ],
+    "outputDir": "./export",
+    "jianying": {
+      "draftDir": "~/Movies/JianyingPro/User Data/Projects/com.lveditor.draft",
+      "appVersion": "5.9.0",
+      "_comment": "剪映格式随版本变化，appVersion 用于对齐 schema"
+    },
+    "copyMedia": false,
+    "_comment": "copyMedia=false 时工程只引用原始素材路径，不复制大文件"
+  }
+}
