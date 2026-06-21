@@ -6,7 +6,33 @@
     "baseUrl": "http://127.0.0.1:15721/v1",
     "model": "glm-5.2",
     "apiKeyEnv": "MONTAGE_API_KEY",
-    "_apiKeyComment": "Key 写在 skill 目录 .env"
+    "_apiKeyComment": "Key 写在 skill 目录 .env（cp .env.example .env），不要写进本文件"
+  },
+  "vision": {
+    "_comment": "读帧后端优先级与回退。agent 执行阶段2前必须向用户说明实际使用的 provider",
+    "provider": "auto",
+    "preferOnDevice": false,
+    "providers": {
+      "user-endpoint": "自配多模态 API（multimodal.*）— 推荐，便宜可控",
+      "apple-on-device": "macOS Vision 框架 — 本地免费，标签较粗，适合粗筛/离线",
+      "agent": "当前 Cursor/Claude agent 直接读图 — 零配置但 token 贵，需用户知情"
+    },
+    "autoOrder": ["user-endpoint", "apple-on-device", "agent"],
+    "batchSize": 20,
+    "requireConsentForAgent": true
+  },
+  "progress": {
+    "file": "work/progress.json",
+    "updateEverySec": 5,
+    "_comment": "scan/read 长阶段写 progress.json，stderr 同步 [draftcut] 前缀日志"
+  },
+  "transcribe": {
+    "enabled": true,
+    "backend": "auto",
+    "model": "small",
+    "language": "",
+    "python": "",
+    "_comment": "backend=auto 探测 mlx_whisper>openai-whisper>faster-whisper>whisper.cpp；python 留空则用 python3；key 不进 config"
   },
   "fallback": {
     "useAgentModel": true,
@@ -69,35 +95,5 @@
     },
     "copyMedia": false,
     "_comment": "copyMedia=false 时工程只引用原始素材路径，不复制大文件"
-  },
-  "vision": {
-    "_comment": "读帧后端优先级与回退。agent 执行阶段2前必须向用户说明实际使用的 provider",
-    "provider": "auto",
-    "preferOnDevice": false,
-    "providers": {
-      "user-endpoint": "自配多模态 API（multimodal.*）— 推荐，便宜可控",
-      "apple-on-device": "macOS Vision 框架 — 本地免费，标签较粗，适合粗筛/离线",
-      "agent": "当前 Cursor/Claude agent 直接读图 — 零配置但 token 贵，需用户知情"
-    },
-    "autoOrder": [
-      "user-endpoint",
-      "apple-on-device",
-      "agent"
-    ],
-    "batchSize": 20,
-    "requireConsentForAgent": true
-  },
-  "progress": {
-    "file": "work/progress.json",
-    "updateEverySec": 5,
-    "_comment": "scan/read 长阶段写 progress.json，stderr 同步 [draftcut] 前缀日志"
-  },
-  "transcribe": {
-    "enabled": true,
-    "backend": "auto",
-    "model": "small",
-    "language": "",
-    "python": "",
-    "_comment": "backend=auto 探测 mlx_whisper>openai-whisper>faster-whisper>whisper.cpp；python 留空则用 python3；key 不进 config"
   }
 }
