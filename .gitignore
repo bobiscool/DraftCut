@@ -1,8 +1,19 @@
-# 用户本地配置
- draftcut.config.json
+# 密钥与本地配置（绝不进 git）
 .env
+.env.*
+!.env.example
+draftcut.config.json
+draftcut.config.local.json
+*.pem
+*.key
 
-# 运行产物
+# 运行产物（可能含素材绝对路径）
 work/
 export/
 *.fcpxml
+
+# 依赖
+node_modules/
+
+# OS
+.DS_Store
