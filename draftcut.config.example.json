@@ -1,11 +1,12 @@
 {
   "multimodal": {
     "enabled": true,
-    "_comment": "配多模态端点便宜可控；enabled=false 则回退当前 agent 直接读图（贵）",
+    "_comment": "配多模态端点便宜可控；enabled=false 则看 vision.provider 回退链",
     "provider": "openai-compatible",
     "baseUrl": "http://127.0.0.1:15721/v1",
     "model": "glm-5.2",
-    "apiKeyEnv": "MONTAGE_API_KEY"
+    "apiKeyEnv": "MONTAGE_API_KEY",
+    "_apiKeyComment": "Key 写在 skill 目录 .env"
   },
   "fallback": {
     "useAgentModel": true,
