@@ -64,3 +64,70 @@ function appleReady() {
 
 function resolveProvider() {
   const forced = vision.provider && vision.provider !== 'auto' ? vision.provider : null;
+  const order = forced
+    ? [forced]
+    : (vision.preferOnDevice
+        ? ['apple-on-device', 'user-endpoint', 'agent']
+        : (vision.autoOrder || ['user-endpoint', 'apple-on-device', 'agent']));
+
+  for (const p of order) {
+    if (p === 'user-endpoint') {
+      const r = endpointReady();
+      if (r && r.ready) return { provider: 'user-endpoint', warnNoKey: !!r.warnNoKey };
+    } else if (p === 'apple-on-device') {
+      if (appleReady()) return { provider: 'apple-on-device' };
+    } else if (p === 'agent') {
+      return { provider: 'agent' };
+    }
+  }
+  return { provider: 'agent' };
+}
+
+const { provider, warnNoKey } = resolveProvider();
+
+const labels = {
+  'user-endpoint': `${mm.model || '自配模型'} @ ${mm.baseUrl || '未知端点'}`,
+  'apple-on-device': 'macOS Vision 框架（本地）',
+  'agent': '当前 agent 直接读图',
+};
+const visionLabel = labels[provider];
+const needsConsent = provider === 'agent' && (vision.requireConsentForAgent !== false);
+
+const run = writeRun(WORK, {
+  visionProvider: provider,
+  visionLabel,
+  configPath: CONFIG_PATH,
+  needsConsent,
+  warnNoKey: !!warnNoKey,
+});
+
+const result = {
+  visionProvider: provider,
+  visionLabel,
+  needsConsent,
+  warnNoKey: !!warnNoKey,
+  configPath: CONFIG_PATH,
+};
+
+if (jsonOnly) {
+  process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+} else {
+  const lines = [];
+  lines.push('━━━ DraftCut · 读帧后端 ━━━');
+  lines.push(`后端: ${provider}`);
+  lines.push(`说明: ${visionLabel}`);
+  if (provider === 'user-endpoint') {
+    lines.push('成本: 低（走你自配端点） · 隐私: 取决于该端点');
+    if (warnNoKey) lines.push(`⚠️ ${mm.apiKeyEnv} 未设置 → cp .env.example .env 并填写，或 export ${mm.apiKeyEnv}=...`);
+  } else if (provider === 'apple-on-device') {
+    lines.push('成本: 免费本地 · 隐私: 不出本机 · 理解力: 中（基础标签）');
+  } else {
+    lines.push('成本: 高（消耗对话 token） · 理解力: 强');
+    if (needsConsent) lines.push('⚠️ 这是回退方案，素材多时很贵——开始读帧前请先征得用户同意');
+    if (!isMac) lines.push('（非 macOS，Apple 本地后端不可用）');
+  }
+  lines.push(`已写入: ${join(WORK, 'run.json')}`);
+  process.stdout.write(lines.join('\n') + '\n');
+}
+
+process.exit(needsConsent ? 10 : 0);
