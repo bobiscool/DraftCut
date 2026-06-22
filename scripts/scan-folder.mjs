@@ -79,3 +79,85 @@ function scanVideo(video, name, idx) {
     thumbs: frames.map(f => f.thumb),
     width: meta.width,
     height: meta.height,
+    fps: meta.fps,
+  };
+}
+
+function scanImage(image, name, idx) {
+  const thumb = join(WORK, 'thumbs', `${name}_01.jpg`);
+  try { imageToThumb(image, thumb); } catch { return null; }
+  return {
+    id: `a_${String(idx).padStart(3, '0')}`,
+    src: image,
+    file: basename(image),
+    type: 'image',
+    start: 0,
+    end: 0,
+    dur: 2.5,
+    frames: [{ t: 0, thumb }],
+    thumbs: [thumb],
+    width: 1920,
+    height: 1080,
+    fps: 30,
+  };
+}
+
+const files = readdirSync(SRC)
+  .filter(f => VIDEO_EXT.has(extname(f)) || IMAGE_EXT.has(extname(f)))
+  .map(f => join(SRC, f))
+  .sort();
+
+const assets = [];
+let idx = 0;
+const lang = normalizeLang(readRun(WORK).language || readRun(WORK).lang);
+writeProgress(WORK, { phase: 'scan', language: lang, totalFiles: files.length, fileIndex: 0, message: `${t(lang, 'msg_scan_start')} · ${files.length}` });
+
+for (let fi = 0; fi < files.length; fi++) {
+  const file = files[fi];
+  const name = basename(file, extname(file));
+  const ext = extname(file);
+  writeProgress(WORK, { phase: 'scan', language: lang, currentFile: basename(file), fileIndex: fi + 1, totalFiles: files.length, message: t(lang, 'msg_scan_file') });
+  try {
+    const asset = IMAGE_EXT.has(ext) ? scanImage(file, name, ++idx) : scanVideo(file, name, ++idx);
+    if (asset) assets.push(asset);
+  } catch (e) {
+    console.error(`[draftcut] 跳过 ${basename(file)}: ${e.message?.slice(0, 100)}`);
+  }
+}
+
+// shots 兼容旧脚本：每个 asset 一条，整段作为一个单元
+const shots = assets.map(a => ({
+  id: a.id,
+  src: a.src,
+  file: a.file,
+  type: a.type,
+  start: a.start,
+  end: a.end,
+  dur: a.dur,
+  frames: a.frames,
+  thumbs: a.thumbs,
+  width: a.width,
+  height: a.height,
+  fps: a.fps,
+}));
+
+writeFileSync(join(WORK, 'shots.json'), JSON.stringify({
+  sourceDir: SRC,
+  scannedAt: new Date().toISOString(),
+  maxFramesPerAsset: MAX_FRAMES,
+  assetCount: assets.length,
+  videoCount: assets.filter(a => a.type === 'video').length,
+  imageCount: assets.filter(a => a.type === 'image').length,
+  assets,
+  shots,
+}, null, 2));
+
+writeProgress(WORK, {
+  phase: 'scan',
+  language: lang,
+  fileIndex: files.length,
+  totalFiles: files.length,
+  shotsTotal: assets.length,
+  shotsDone: assets.length,
+  message: `${assets.length} ${t(lang, 'clips')} · ${assets.filter(a => a.type === 'video').length} video + ${assets.filter(a => a.type === 'image').length} image`,
+});
