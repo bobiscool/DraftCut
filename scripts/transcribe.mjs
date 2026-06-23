@@ -102,3 +102,108 @@ print(json.dumps(out))
     return JSON.parse(r.stdout);
   }
   if (backend === 'cpp') {
+    const bin = have('whisper-cli') ? 'whisper-cli' : 'whisper-cpp';
+    const model = tcfg.cppModel || process.env.WHISPER_CPP_MODEL;
+    if (!model) throw new Error('whisper.cpp 需要模型路径：设 transcribe.cppModel 或环境变量 WHISPER_CPP_MODEL');
+    const base = join(dir, 'out');
+    const r = spawnSync(bin, ['-m', model, '-f', wav, '-oj', '-of', base, ...(LANG ? ['-l', LANG] : [])], { encoding: 'utf8' });
+    if (r.status !== 0) throw new Error((r.stderr || r.stdout || '').slice(0, 400));
+    const j = JSON.parse(readFileSync(base + '.json', 'utf8'));
+    const segs = (j.transcription || []).map(t => ({
+      start: (t.offsets?.from ?? 0) / 1000, end: (t.offsets?.to ?? 0) / 1000, text: (t.text || '').trim(),
+    }));
+    return { language: j.result?.language || LANG, text: segs.map(s => s.text).join(''), segments: segs };
+  }
+  throw new Error('unknown backend ' + backend);
+}
+
+// 折叠段内连续重复词/字（"Ukrain Ukrain Ukrain" → "Ukrain"）
+function collapseRepeats(text) {
+  if (!text) return text;
+  if (/\s/.test(text)) {
+    const toks = text.trim().split(/\s+/);
+    const out = []; for (const w of toks) if (out[out.length - 1] !== w) out.push(w);
+    return out.join(' ');
+  }
+  return text.replace(/(.{1,8}?)\1{3,}/g, '$1'); // 无空格(CJK)：≥4 次连续重复短串→1 次
+}
+
+// whisper 在无人声/纯音乐上常产生重复幻觉（同一句刷屏）。过滤掉。
+function dehallucinate(t) {
+  if (!t || !t.segments) return t;
+  // 折叠相邻重复段 + 段内重复词
+  const segs = [];
+  for (const s0 of t.segments) {
+    const s = { ...s0, text: collapseRepeats(s0.text) };
+    const prev = segs[segs.length - 1];
+    if (prev && prev.text === s.text) { prev.end = s.end; continue; }
+    segs.push(s);
+  }
+  // 若某一句占了绝大多数段，判为无效语音
+  const counts = {};
+  for (const s of segs) counts[s.text] = (counts[s.text] || 0) + 1;
+  const top = Math.max(0, ...Object.values(counts));
+  if (segs.length >= 3 && top / segs.length > 0.6) {
+    return { ...t, segments: [], text: '', note: 'no-speech(hallucination filtered)' };
+  }
+  const joined = segs.map(s => s.text).join(' ').trim();
+  // 折叠后只剩标点/符号，或有效字符过短 → 视为无语音
+  const meaningful = joined.replace(/[\s.,!?；。，！？、…·\-_*]/g, '');
+  if (meaningful.length < 6) {
+    return { ...t, segments: [], text: '', note: 'no-speech(too-short)' };
+  }
+  return { ...t, segments: segs, text: joined };
+}
+
+const backend = detectBackend();
+if (!backend) {
+  console.error('[draftcut] 未找到 whisper 后端。安装其一：');
+  console.error('  · Apple Silicon(推荐): pip install mlx-whisper');
+  console.error('  · 通用:               pip install -U openai-whisper');
+  console.error('  · 快速:               pip install faster-whisper');
+  console.error('  · C++:                brew install whisper-cpp（再设 WHISPER_CPP_MODEL 指向 ggml 模型）');
+  process.exit(3);
+}
+
+const shotsDoc = (() => { try { return JSON.parse(readFileSync(join(WORK, 'shots.json'), 'utf8')); } catch { return { shots: [] }; } })();
+const videos = [...new Set((shotsDoc.shots || []).map(s => s.src))];
+if (!videos.length) { console.error('[draftcut] shots.json 为空，请先 scan'); process.exit(2); }
+const transcriptPath = join(WORK, 'transcripts.json');
+const existingDoc = (() => { try { return JSON.parse(readFileSync(transcriptPath, 'utf8')); } catch { return { videos: [] }; } })();
+const existingBySrc = new Map((existingDoc.videos || []).map(v => [v.src, v]));
+
+function hasAudio(video) {
+  const r = spawnSync('ffprobe', ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', video], { encoding: 'utf8' });
+  return r.status === 0 && r.stdout.trim().length > 0;
+}
+
+writeProgress(WORK, { phase: 'transcribe', phaseLabel: '音频转写', totalFiles: videos.length, fileIndex: 0, message: `whisper 后端=${backend}, 模型=${MODEL}` });
+const out = [];
+function savePartial() {
+  writeFileSync(transcriptPath, JSON.stringify({ transcribedAt: new Date().toISOString(), backend, model: MODEL, videos: out }, null, 2));
+}
+for (let i = 0; i < videos.length; i++) {
+  const video = videos[i];
+  const existing = existingBySrc.get(video);
+  if (existing) {
+    out.push(existing);
+    writeProgress(WORK, { phase: 'transcribe', totalFiles: videos.length, fileIndex: i + 1, currentFile: basename(video), message: '已存在，跳过' });
+    continue;
+  }
+  writeProgress(WORK, { phase: 'transcribe', totalFiles: videos.length, fileIndex: i + 1, currentFile: basename(video), message: '检查音轨' });
+  if (!hasAudio(video)) { out.push({ src: video, file: basename(video), language: '', text: '', segments: [], note: 'no-audio' }); savePartial(); continue; }
+  writeProgress(WORK, { phase: 'transcribe', totalFiles: videos.length, fileIndex: i + 1, currentFile: basename(video), message: `提取音频 + ${backend} 转写中` });
+  try {
+    const { dir, wav } = extractAudio(video);
+    const t = dehallucinate(runBackend(backend, wav, dir));
+    out.push({ src: video, file: basename(video), backend, ...t });
+    writeProgress(WORK, { phase: 'transcribe', totalFiles: videos.length, fileIndex: i + 1, currentFile: basename(video), message: `${(t.segments || []).length} 段文字` });
+  } catch (e) {
+    console.error(`[draftcut] ${basename(video)} 转写失败: ${e.message}`);
+    out.push({ src: video, file: basename(video), language: '', text: '', segments: [], error: e.message });
+  }
+  savePartial();
+}
+
+savePartial();
+writeProgress(WORK, { phase: 'transcribe', totalFiles: videos.length, fileIndex: videos.length, message: `完成 -> transcripts.json` });
