@@ -89,3 +89,95 @@ function buildPrompt(asset) {
   return buildReadPrompt(lang, asset, frameLines, fullText);
 }
 
+function extractJson(content) {
+  const s = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const a = s.indexOf('{'); const b = s.lastIndexOf('}');
+  return a >= 0 && b > a ? s.slice(a, b + 1) : s;
+}
+
+async function callEndpoint(imagePath, prompt) {
+  const b64 = readFileSync(imagePath).toString('base64');
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } },
+        ],
+      }],
+      temperature: 0.1,
+    }),
+  });
+  if (!res.ok) throw new Error(`endpoint ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content ?? '{}';
+  try { return JSON.parse(extractJson(content)); } catch { return {}; }
+}
+
+mkdirSync(join(WORK, 'contact_sheets'), { recursive: true });
+
+const run = readRun(WORK);
+const lang = normalizeLang(run.language || run.lang);
+const analysis = [];
+const videoSummaries = [];
+writeProgress(WORK, { phase: 'read', language: lang, visionProvider: run.visionProvider || 'user-endpoint', visionLabel: run.visionLabel || `${model} @ ${baseUrl}`, totalBatches: assets.length, batchIndex: 0, shotsTotal: assets.length, shotsDone: 0, message: t(lang, 'msg_read_vlm') + ` · ${assets.length}` });
+
+for (let vi = 0; vi < assets.length; vi++) {
+  const asset = assets[vi];
+  writeProgress(WORK, { phase: 'read', batchIndex: vi + 1, totalBatches: assets.length, currentFile: asset.file, shotsDone: vi, shotsTotal: assets.length, message: t(lang, 'msg_read_sheet') });
+  const sheet = buildContactSheet(asset);
+  let parsed = {};
+  if (sheet) {
+    writeProgress(WORK, { phase: 'read', batchIndex: vi + 1, totalBatches: assets.length, currentFile: asset.file, message: `${t(lang, 'msg_read_vlm')} · ${model}` });
+    try { parsed = await callEndpoint(sheet.path, buildPrompt(asset)); }
+    catch (e) { console.error(`[draftcut] ${asset.file} 分析失败: ${e.message}`); }
+  }
+  const full = transBySrc.get(asset.src);
+  videoSummaries.push({
+    id: asset.id,
+    src: asset.src,
+    file: asset.file,
+    type: asset.type,
+    title: parsed.title || '',
+    summary: parsed.videoSummary || '',
+    contentType: parsed.contentType || '',
+    narrativeBeats: parsed.narrativeBeats || [],
+    bestMoments: (parsed.bestMoments || []).map(b => ({
+      frame: b.frame,
+      t: b.t ?? (asset.frames?.[(b.frame || 1) - 1]?.t ?? 0),
+      reason: b.reason,
+      highlight: b.highlight ?? 0.8,
+    })),
+    mood: parsed.mood || [],
+    tags: parsed.tags || [],
+    transcript: full?.text || '',
+  });
+  const topHighlight = Math.max(0, ...(parsed.bestMoments || []).map(b => b.highlight ?? 0.8));
+  analysis.push({
+    id: asset.id,
+    src: asset.src,
+    file: asset.file,
+    type: asset.type,
+    thumb: asset.thumbs?.[0] || null,
+    thumbs: asset.thumbs || [],
+    frames: asset.frames || [],
+    start: asset.start, end: asset.end, dur: asset.dur,
+    transcript: full?.text || '',
+    summary: parsed.videoSummary || '',
+    title: parsed.title || '',
+    narrativeBeats: parsed.narrativeBeats || [],
+    mood: parsed.mood || [],
+    tags: parsed.tags || [],
+    quality: 0.8,
+    highlight: topHighlight || 0.5,
+    analyzedBy: `user-endpoint:${model}`,
+  });
+  writeProgress(WORK, { phase: 'read', batchIndex: vi + 1, totalBatches: assets.length, currentFile: asset.file, shotsDone: vi + 1, shotsTotal: assets.length, message: parsed.title || '已写入' });
+}
+
+writeFileSync(join(WORK, 'analysis.json'), JSON.stringify({ analyzedAt: new Date().toISOString(), provider: `user-endpoint:${model}`, assets: videoSummaries, videos: videoSummaries, shots: analysis }, null, 2));
+writeProgress(WORK, { phase: 'read', batchIndex: assets.length, totalBatches: assets.length, shotsDone: assets.length, shotsTotal: assets.length, message: `完成 ${assets.length} 个素材 -> analysis.json` });
