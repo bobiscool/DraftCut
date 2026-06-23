@@ -168,3 +168,143 @@ async function runPipeline(runId, source, work, opts = {}) {
   code = await runChild('transcribe.mjs', [work, '--lang', lang]);
   if (runId !== pipelineRun) return;
   // Transcription is helpful but not required; visual analysis can continue without it.
+
+  const resolveArgs = [work];
+  if (CONFIG) resolveArgs.push('--config', CONFIG);
+  code = await runChild('resolve-vision.mjs', resolveArgs);
+  if (runId !== pipelineRun) return;
+  if (code === 10) {
+    writeProgress(work, { phase: 'read', language: lang, message: '等待确认 agent 读帧后端…' });
+    return;
+  }
+  if (code !== 0) return;
+
+  const readArgs = [work];
+  if (CONFIG) readArgs.push('--config', CONFIG);
+  code = await runChild('read-shots.mjs', readArgs);
+  if (runId !== pipelineRun || code !== 0) return;
+
+  writeProgress(work, { phase: 'seq', language: lang, message: t(lang, 'msg_seq') });
+}
+
+function startScan(sourceDir, opts = {}) {
+  if (scanProcess && scanProcess.exitCode == null) scanProcess.kill('SIGTERM');
+  const { source, work } = resetWorkForSource(sourceDir, opts.workDir, opts);
+  const runId = ++pipelineRun;
+  runPipeline(runId, source, work, opts).catch(err => {
+    writeProgress(work, { phase: 'scan', language: normalizeLang(opts.language), message: err.message || String(err) });
+  });
+  return { source, work, pid: scanProcess?.pid || null };
+}
+
+function pickFolder() {
+  if (process.platform !== 'darwin') {
+    throw new Error('folder picker is only implemented for macOS right now');
+  }
+  const r = spawnSync('/usr/bin/osascript', [
+    '-e',
+    'POSIX path of (choose folder with prompt "Choose a media folder for DraftCut")',
+  ], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error((r.stderr || 'cancelled').trim());
+  return r.stdout.trim().replace(/\/$/, '');
+}
+
+async function readBody(req) {
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+const server = createServer(async (req, res) => {
+  const u = new URL(req.url, `http://localhost:${PORT}`);
+  const path = u.pathname;
+  try {
+    if (path === '/' || path === '/index.html') {
+      return send(res, 200, buildHtml(req), { 'content-type': 'text/html; charset=utf-8' });
+    }
+    if (path === '/file') {
+      const p = u.searchParams.get('path');
+      if (!p) return send(res, 400, 'missing path');
+      return serveFile(req, res, decodeURIComponent(p));
+    }
+    if (path === '/api/montage' && req.method === 'GET') {
+      const data = existsSync(montagePath()) ? readFileSync(montagePath(), 'utf8') : '{}';
+      return send(res, 200, data, { 'content-type': 'application/json' });
+    }
+    if (path === '/api/montage' && req.method === 'POST') {
+      const body = await readBody(req);
+      JSON.parse(body); // 校验
+      await writeFile(montagePath(), body, 'utf8');
+      return send(res, 200, JSON.stringify({ ok: true, saved: montagePath() }), { 'content-type': 'application/json' });
+    }
+    if (path === '/api/export' && req.method === 'POST') {
+      const target = u.searchParams.get('target');
+      const m = rj(montagePath(), {});
+      const name = slug(m.brief || m.style || 'montage');
+      const exportDir = join(WORK, 'export');
+      await mkdir(exportDir, { recursive: true });
+      const shotsArg = existsSync(shotsPath()) ? [shotsPath()] : [];
+      let out, result;
+      if (target === 'fcpxml') {
+        out = join(exportDir, `${name}.fcpxml`);
+        result = await runScript([join(__dirname, 'export-fcpxml.mjs'), montagePath(), out, ...shotsArg]);
+      } else if (target === 'jianying') {
+        out = join(exportDir, 'jianying', name);
+        result = await runScript([join(__dirname, 'export-jianying.mjs'), montagePath(), out, ...shotsArg]);
+      } else {
+        return send(res, 400, JSON.stringify({ error: 'unknown target' }), { 'content-type': 'application/json' });
+      }
+      if (result.code !== 0) return send(res, 500, JSON.stringify({ error: result.log || 'export failed' }), { 'content-type': 'application/json' });
+      return send(res, 200, JSON.stringify({ ok: true, out, log: result.log }), { 'content-type': 'application/json' });
+    }
+    if (path === '/api/progress') {
+      const data = existsSync(join(WORK, 'progress.json')) ? readFileSync(join(WORK, 'progress.json'), 'utf8') : '{}';
+      return send(res, 200, data, { 'content-type': 'application/json' });
+    }
+    if (path === '/api/analysis') {
+      const p = join(WORK, 'analysis.json');
+      const data = existsSync(p) ? readFileSync(p, 'utf8') : '{}';
+      return send(res, 200, data, { 'content-type': 'application/json' });
+    }
+    if (path === '/api/shots') {
+      const data = existsSync(shotsPath()) ? readFileSync(shotsPath(), 'utf8') : '{}';
+      return send(res, 200, data, { 'content-type': 'application/json' });
+    }
+    if (path === '/api/work') {
+      return send(res, 200, JSON.stringify({ work: WORK, roots: allowedRoots(), scanning: !!(scanProcess && scanProcess.exitCode == null) }), { 'content-type': 'application/json' });
+    }
+    if (path === '/api/start-scan' && req.method === 'POST') {
+      const body = JSON.parse(await readBody(req));
+      if (!body.sourceDir) return send(res, 400, JSON.stringify({ error: 'missing sourceDir' }), { 'content-type': 'application/json' });
+      const started = startScan(body.sourceDir, body);
+      return send(res, 200, JSON.stringify({ ok: true, ...started }), { 'content-type': 'application/json' });
+    }
+    if (path === '/api/pick-folder' && req.method === 'POST') {
+      const folder = pickFolder();
+      return send(res, 200, JSON.stringify({ ok: true, folder }), { 'content-type': 'application/json' });
+    }
+    if (path === '/api/run' && req.method === 'GET') {
+      const data = existsSync(join(WORK, 'run.json')) ? readFileSync(join(WORK, 'run.json'), 'utf8') : '{}';
+      return send(res, 200, data, { 'content-type': 'application/json' });
+    }
+    if (path === '/api/run' && req.method === 'POST') {
+      const body = JSON.parse(await readBody(req));
+      const prev = rj(join(WORK, 'run.json'), {});
+      const next = { ...prev, ...body, language: normalizeLang(body.language || body.lang || prev.language) };
+      writeFileSync(join(WORK, 'run.json'), JSON.stringify(next, null, 2));
+      return send(res, 200, JSON.stringify({ ok: true, language: next.language }), { 'content-type': 'application/json' });
+    }
+    send(res, 404, 'not found');
+  } catch (e) {
+    send(res, 500, JSON.stringify({ error: String(e.message || e) }), { 'content-type': 'application/json' });
+  }
+});
+
+server.listen(PORT, () => {
+  const url = `http://localhost:${PORT}/`;
+  console.error(`[draftcut] storyboard 服务: ${url}`);
+  console.error(`[draftcut] work=${WORK}`);
+  console.error(`[draftcut] 允许素材根目录:`);
+  for (const r of allowedRoots()) console.error(`           ${r}`);
+  if (has('--open')) spawn('open', [url]);
+});
