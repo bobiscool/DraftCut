@@ -173,17 +173,39 @@
     <button class="btn" id="stop">⏹ 停止</button>
     <button class="btn" id="audBtn">🎵 听音乐</button>
     <button class="btn" id="exportBtn">⬇ 导出 montage.json</button>
+    <button class="btn" id="expFcpxml" hidden>🎬 导出 FCPXML</button>
+    <button class="btn" id="expJy" hidden>✂️ 导出 剪映</button>
     <span class="hint">时间线：拖动片段移动 / 拖右缘裁剪 · 点「本线」片段试播</span>
+    <span class="hint" id="status"></span>
   </div>
 
-  <div class="tlwrap"><svg id="tl" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div class="progress-panel" id="progressPanel" hidden>
+    <h2 id="progTitle">⏳ 素材解析中</h2>
+    <p id="progMsg">正在扫描…</p>
+    <div class="bar"><i id="progBar"></i></div>
+    <div class="log" id="progLog"></div>
+    <div class="asset-grid" id="assetGrid"></div>
+  </div>
+
+  <div class="tl-toolbar" id="tlToolbar">
+    <button class="btn" id="zoomOut" type="button">−</button>
+    <input type="range" id="zoomSlider" min="1" max="6" step="0.25" value="1" />
+    <button class="btn" id="zoomIn" type="button">+</button>
+    <span class="hint" id="zoomPct">100%</span>
+    <span class="hint">时间线可缩放 · 横滚查看</span>
+  </div>
+  <div class="tlscroll" id="tlscroll">
+    <div class="tlwrap" id="tlwrap"><svg id="tl" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  </div>
+
+  <div class="shots" id="shots"></div>
 
   <footer>DraftCut · 手绘多轨编排，不渲染成片 · 导出 FCPXML / 剪映工程后在 PR/剪映里继续做</footer>
 </div>
 
 <script>
 /* build-storyboard.mjs 会替换下面这段为真实数据 */
-const DATA = /*__DATA_START__*/ {
+let DATA = /*__DATA_START__*/ {
   "brief":"成都美食 vlog · 烟火气 · 竖屏","aspect":"9:16","targetDuration":10,"style":"快节奏烟火气 vlog",
   "music":{"title":"City Lofi Night","bpm":96,"mood":"lofi","src":"media/bgm.mp3","beats":[0,0.625,1.25,1.875,2.5,3.125,3.75,4.375,5,5.625,6.25,6.875,7.5,8.125,8.75,9.375],
     "beatSync":{"every":1}},
