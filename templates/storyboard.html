@@ -46,35 +46,123 @@
   .btn{font-family:inherit;font-size:18px;cursor:pointer;background:#fbf6e7;color:var(--ink);border:2.5px solid var(--line);
     border-radius:10px 7px 11px 6px;padding:4px 14px;box-shadow:2px 3px 0 rgba(58,52,45,.18)}
   .btn:active{transform:translate(2px,3px);box-shadow:none}
+  .btn:disabled{cursor:not-allowed;opacity:.62;transform:none;box-shadow:2px 3px 0 rgba(58,52,45,.12)}
   .btn.primary{background:var(--accent);color:#fff}
   .hint{color:var(--ink-soft);font-size:15px}
   .tlwrap{border:3px solid var(--line);border-radius:14px 10px 16px 9px;background:#fbf6e7;
-    box-shadow:4px 5px 0 rgba(58,52,45,.18);padding:6px 8px}
-  svg#tl{display:block;width:100%;height:auto;touch-action:none}
+    box-shadow:4px 5px 0 rgba(58,52,45,.18);padding:6px 8px;display:inline-block;min-width:100%}
+  .tlscroll{overflow:auto;max-height:min(70vh,520px);border:3px solid var(--line);border-radius:14px 10px 16px 9px;
+    background:#fbf6e7;box-shadow:4px 5px 0 rgba(58,52,45,.18);margin-bottom:8px}
+  .tlscroll .tlwrap{border:none;box-shadow:none;border-radius:0}
+  .tl-toolbar{display:flex;gap:8px;align-items:center;margin:0 0 8px;flex-wrap:wrap}
+  .tl-toolbar input[type=range]{width:120px;accent-color:var(--accent2)}
+  svg#tl{display:block;height:auto;touch-action:pan-x pan-y;user-select:none;-webkit-user-select:none}
+  svg#tl text{user-select:none;-webkit-user-select:none;pointer-events:none}
+  svg#tl .clip{user-select:none;-webkit-user-select:none}
+  body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:none!important;cursor:grabbing!important}
   svg#tl text{font-family:'Gaegu','PingFang SC',cursive;fill:var(--ink)}
   svg#tl .clip{cursor:grab}
   svg#tl .clip:active{cursor:grabbing}
   svg#tl .tname{font-size:15px;fill:var(--ink-soft);font-weight:700}
-  svg#tl .clab{font-size:14px;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:.6px}
+  svg#tl .clab{font-size:13px;fill:#fff;font-weight:700;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:.8px}
+  svg#tl .clab.center{text-anchor:middle}
   svg#tl .rlab{font-size:12px;fill:var(--ink-soft)}
   svg#tl .emolab{font-size:13px;fill:var(--accent)}
+  .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:12px;margin:16px 0 6px}
+  .shotcard{border:2.5px solid var(--line);border-radius:12px 8px 13px 9px;background:#fbf6e7;
+    box-shadow:3px 4px 0 rgba(58,52,45,.16);overflow:hidden;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease;display:flex;flex-direction:column}
+  .shotcard:hover{transform:translate(-1px,-2px);box-shadow:5px 6px 0 rgba(58,52,45,.22)}
+  .shotcard.playing{outline:3px solid var(--accent);outline-offset:-1px}
+  .shotcard .thumb{position:relative;aspect-ratio:16/9;background:#1c1813 center/cover no-repeat}
+  .shotcard .thumb .noimg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c7b89a;font-size:14px}
+  .shotcard .badge{position:absolute;left:6px;top:6px;font-size:13px;font-weight:700;color:#fff;border:2px solid var(--line);
+    border-radius:7px 5px 7px 5px;padding:0 7px;transform:rotate(-2deg)}
+  .shotcard .tspan{position:absolute;right:6px;bottom:6px;font-size:12px;color:#f6eede;background:rgba(0,0,0,.55);border-radius:5px;padding:0 5px}
+  .shotcard .desc{padding:7px 9px 9px;font-size:14px;line-height:1.25;color:var(--ink)}
+  .shotcard .desc .ord{color:var(--ink-soft);font-weight:700;margin-right:4px}
   footer{margin-top:30px;color:var(--ink-soft);font-size:15px;text-align:center}
   svg.defs{position:absolute;width:0;height:0}
+  .progress-panel{border:3px solid var(--line);border-radius:14px;background:#fbf6e7;padding:20px 22px;margin-bottom:16px;box-shadow:4px 5px 0 rgba(58,52,45,.18)}
+  .progress-panel h2{margin:0 0 8px;font-size:26px}
+  .progress-panel .bar{height:14px;border:2px solid var(--line);border-radius:8px;background:var(--paper2);overflow:hidden;margin:10px 0}
+  .progress-panel .bar i{display:block;height:100%;background:var(--accent2);width:0;transition:width .3s}
+  .progress-panel .log{font-size:15px;color:var(--ink-soft);line-height:1.5;max-height:120px;overflow:auto}
+  .live-status{border:2.5px solid var(--line);border-radius:14px 10px 16px 9px;background:var(--paper2);
+    padding:14px 16px 12px;margin-bottom:12px;box-shadow:3px 4px 0 rgba(58,52,45,.14)}
+  .live-status .steps{display:grid;grid-template-columns:repeat(5,minmax(92px,1fr));gap:0;align-items:start;margin:2px 0 8px}
+  .live-status .step{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;
+    color:var(--ink-soft);font-size:13px;min-width:0}
+  .live-status .step:not(:last-child)::after{content:"";position:absolute;top:15px;left:calc(50% + 18px);right:calc(-50% + 18px);
+    height:4px;background:#d8ccb0;border-top:2px solid var(--line);border-bottom:2px solid var(--line);z-index:0}
+  .live-status .step.done:not(:last-child)::after{background:var(--accent2)}
+  .live-status .step i{position:relative;z-index:1;width:32px;height:32px;border:2.5px solid var(--line);border-radius:999px;
+    display:flex;align-items:center;justify-content:center;background:#fff;color:var(--ink);font-style:normal;font-weight:700;
+    box-shadow:2px 3px 0 rgba(58,52,45,.16)}
+  .live-status .step b{font-size:14px;line-height:1.05;font-weight:700}
+  .live-status .step small{font-size:11px;color:var(--ink-soft);line-height:1}
+  .live-status .step.done i{background:var(--accent2);color:#fff}
+  .live-status .step.on i{background:var(--accent);color:#fff;transform:scale(1.14);box-shadow:0 0 0 4px rgba(216,87,42,.16),2px 3px 0 rgba(58,52,45,.18)}
+  .live-status .step.on b{color:var(--accent);font-size:16px}
+  .live-status .msg{font-size:15px;color:var(--ink-soft);padding-top:6px;border-top:1.5px dashed rgba(58,52,45,.28)}
+  @media(max-width:780px){.live-status .steps{grid-template-columns:1fr;gap:8px}.live-status .step{align-items:flex-start;flex-direction:row;text-align:left}
+    .live-status .step:not(:last-child)::after{display:none}.live-status .step b{padding-top:7px}}
+  .lang-switch{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:15px}
+  .lang-switch select{font-family:inherit;font-size:15px;border:2px solid var(--line);border-radius:8px;padding:2px 8px;background:#fff}
+  .scan-form{border:2.5px solid var(--line);border-radius:12px;background:var(--paper2);padding:10px 12px;margin-bottom:12px;
+    display:grid;grid-template-columns:1.45fr .8fr 220px auto;gap:8px;align-items:end}
+  .scan-form label{display:flex;flex-direction:column;gap:2px;font-size:14px;color:var(--ink-soft)}
+  .scan-form input{font-family:inherit;font-size:16px;border:2px solid var(--line);border-radius:8px;background:#fff;padding:4px 8px;color:var(--ink)}
+  .scan-form .path-row{display:grid;grid-template-columns:1fr auto;gap:6px}
+  .scan-form .pick{font-size:15px;padding:3px 10px}
+  .scan-form .duration-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+  .scan-form input[type=range]{padding:0;border:none;background:transparent;accent-color:var(--accent)}
+  .scan-form .dur-val{font-size:15px;color:var(--accent);font-weight:700;min-width:54px;text-align:right}
+  .scan-form .workhint{grid-column:1/-1;font-size:13px;color:var(--ink-soft)}
+  @media(max-width:780px){.scan-form{grid-template-columns:1fr}.scan-form .workhint{grid-column:auto}}
+  .asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:12px}
+  .asset-grid .a{border:2px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;font-size:13px}
+  .asset-grid .a img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#1c1813}
+  .asset-grid .a span{display:block;padding:4px 6px;line-height:1.2}
+  body.doc-mode #shots, body.doc-mode #liveStatus, body.doc-mode #progressPanel, body.doc-mode footer{display:none!important}
 </style>
 </head>
 <body>
 <svg class="defs" xmlns="http://www.w3.org/2000/svg"><filter id="rough">
-  <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" result="n"/>
-  <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/></filter></svg>
+  <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="1.5"/></filter></svg>
 
 <div class="wrap">
-  <h1>DraftCut<span class="dot">.</span> 分镜编排手稿</h1>
+  <div class="headrow">
+  <h1>DraftCut<span class="dot">.</span> <span id="pageTitle">分镜编排手稿</span></h1>
+  <div class="lang-switch" id="langSwitch">
+    <label for="langSelect">🌐 <span id="langLabel">语言</span></label>
+    <select id="langSelect" aria-label="Language">
+      <option value="zh" id="langOptZh">中文</option>
+      <option value="en" id="langOptEn">英文</option>
+      <option value="ja" id="langOptJa">日文</option>
+    </select>
+  </div>
+  </div>
   <p class="brief" id="brief"></p>
+  <form class="scan-form" id="scanForm">
+    <label><span id="sourceDirLabel">素材目录</span><span class="path-row"><input id="sourceDirInput" autocomplete="off" /><button class="btn pick" id="pickFolderBtn" type="button">选择…</button></span></label>
+    <label><span id="briefLabel">目标</span><input id="briefInput" autocomplete="off" /></label>
+    <label><span id="durationLabel">成片时长</span><span class="duration-row"><input id="durationInput" type="range" min="10" max="300" step="5" value="60" /><span class="dur-val" id="durationValue">60s</span></span></label>
+    <button class="btn primary" id="scanBtn" type="submit">开始扫描</button>
+    <div class="workhint" id="workHint"></div>
+  </form>
+  <div class="live-status" id="liveStatus" hidden>
+    <div class="steps" id="liveSteps"></div>
+    <span class="msg" id="liveMsg">连接中…</span>
+  </div>
   <div class="meta" id="meta"></div>
   <div class="music wobble" id="music"></div>
 
   <div class="stage">
-    <video id="player" playsinline preload="metadata" muted></video>
+    <div class="vstack" id="vstack">
+      <video id="playerA" class="vbuf active" playsinline preload="auto" muted></video>
+      <video id="playerB" class="vbuf" playsinline preload="auto" muted></video>
+    </div>
     <audio id="bgm" preload="auto"></audio>
     <div class="ph" id="ph">▶ 点「播放全片」或时间线上「本线」的片段开始预览<br><small>（按编排顺序播各镜头入出点；有音乐则按拍同步，视频静音）</small></div>
     <div class="cap" id="cap"></div>
