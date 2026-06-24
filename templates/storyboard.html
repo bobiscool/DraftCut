@@ -227,23 +227,173 @@ let DATA = /*__DATA_START__*/ {
   ]
 } /*__DATA_END__*/;
 
+const SERVER = (typeof window!=='undefined' && window.__DRAFTCUT_SERVER__) || false;
+const LIVE = (typeof window!=='undefined' && window.__DRAFTCUT_LIVE__) || false;
+const I18N = (typeof window!=='undefined' && window.__DRAFTCUT_I18N__) || {};
+const DOC = !!(typeof window!=='undefined' && window.__DRAFTCUT_DOC__);
+const DEMO_PHASE = (typeof window!=='undefined' && window.__DRAFTCUT_DEMO_PHASE__) || '';
+const URL_LANG = new URL(location.href).searchParams.get('lang');
+let LANG = (typeof window!=='undefined' && window.__DRAFTCUT_LANG__) || URL_LANG || localStorage.getItem('draftcut-lang') || 'zh';
+function tx(key, vars){const s=I18N[LANG]?.[key]??I18N.zh?.[key]??key; return vars?Object.entries(vars).reduce((a,[k,v])=>a.replace(`{${k}}`,v),s):s;}
+function trackName(n){const m={en:{'本线':'Main','主线':'Story','支线':'Subplot','支线2':'Subplot 2','配乐':'Music','Bgm':'Music','情感线':'Emotion'},ja:{'本线':'本編','主线':'ストーリー','支线':'サブ','支线2':'サブ2','配乐':'BGM','Bgm':'BGM','情感线':'感情線'}}; return (m[LANG]&&m[LANG][n])||n;}
+const mediaURL = p => (!p ? p : (SERVER ? '/file?path='+encodeURIComponent(p) : p));
+function hasCjk(s){return /[\u3400-\u9fff]/.test(s||'');}
+function displayText(s,fallbackKey){
+  if(!s) return tx(fallbackKey);
+  return (LANG!=='zh'&&hasCjk(s)) ? tx(fallbackKey) : s;
+}
+function displayBrief(){document.getElementById('brief').textContent='"'+displayText(DATA.brief,'defaultBrief')+'"';}
+function translateMessage(s){
+  if(!s) return '';
+  const map={
+    '扫描已停止':'stopped','扫描素材（视频+图片）':'msg_scan_start','均匀抽帧':'msg_scan_file',
+    '拼 contact sheet':'msg_read_sheet','理解整段情节':'msg_read_vlm','等待编排':'msg_seq',
+    '编排更新中…':'seq_updating','编排就绪 · 可预览微调':'ready'
+  };
+  for(const [zh,key] of Object.entries(map)) if(s.includes(zh)) return s.replace(zh,tx(key));
+  return (LANG!=='zh'&&hasCjk(s)) ? tx('phase_'+(lastProgress?.phase||'scan')) : s;
+}
+let lastProgress=null;
+let scanBusy=false;
+
+function updateScanButton(){
+  const btn=document.getElementById('scanBtn');
+  btn.disabled=scanBusy;
+  btn.textContent=scanBusy?tx('scanning'):tx('scanFromWeb');
+}
+function setScanBusy(on){
+  scanBusy=!!on;
+  updateScanButton();
+}
+
+function applyI18n(){
+  document.documentElement.lang = LANG==='ja'?'ja':LANG==='en'?'en':'zh';
+  document.title = 'DraftCut · '+tx('storyboard');
+  document.getElementById('pageTitle').textContent = tx('storyboard');
+  document.getElementById('langLabel').textContent = tx('language');
+  document.getElementById('langSelect').setAttribute('aria-label', tx('language'));
+  document.getElementById('langOptZh').textContent = tx('lang_zh');
+  document.getElementById('langOptEn').textContent = tx('lang_en');
+  document.getElementById('langOptJa').textContent = tx('lang_ja');
+  document.getElementById('sourceDirLabel').textContent = tx('sourceDir');
+  document.getElementById('pickFolderBtn').textContent = tx('chooseFolder');
+  document.getElementById('briefLabel').textContent = tx('briefLabel');
+  document.getElementById('durationLabel').textContent = tx('durationLabel');
+  updateScanButton();
+  document.getElementById('sourceDirInput').placeholder = tx('sourcePlaceholder');
+  document.getElementById('briefInput').placeholder = tx('briefPlaceholder');
+  updateDurationLabel();
+  document.getElementById('langSelect').value = LANG;
+  document.getElementById('ph').innerHTML = tx('ph')+'<br><small>'+tx('phSub')+'</small>';
+  document.getElementById('playAll').textContent = tx('playAll');
+  document.getElementById('stop').textContent = tx('stop');
+  document.getElementById('audBtn').textContent = tx('audMusic');
+  document.getElementById('exportBtn').textContent = SERVER?tx('save'):tx('exportMontage');
+  document.getElementById('expFcpxml').textContent = tx('expFcpxml');
+  document.getElementById('expJy').textContent = tx('expJy');
+  document.querySelector('.controls .hint:not(#status)').textContent = tx('tlHint');
+  document.querySelector('#tlToolbar .hint:last-child').textContent = tx('zoomHint');
+  document.querySelector('footer').textContent = tx('footer');
+  document.getElementById('liveMsg').textContent = tx('connecting');
+  document.getElementById('progTitle').textContent = '⏳ '+tx('progress_scanning');
+  displayBrief();
+}
+async function setLanguage(lang){
+  LANG = lang;
+  localStorage.setItem('draftcut-lang', lang);
+  buildModel(DATA); applyI18n(); renderMeta(); render(); renderMusic(); renderShots();
+  if(SERVER) try{await fetch('/api/run',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({language:lang})});}catch(e){}
+  const u=new URL(location.href); u.searchParams.set('lang',lang); history.replaceState(null,'',u);
+}
+document.getElementById('langSelect').onchange=e=>setLanguage(e.target.value);
+if(DOC) document.body.classList.add('doc-mode');
+applyI18n();
+
+function updateDurationLabel(){
+  const v=Number(document.getElementById('durationInput').value)||60;
+  document.getElementById('durationValue').textContent=`${v}${tx('seconds')}`;
+}
+document.getElementById('durationInput').addEventListener('input',updateDurationLabel);
+
+async function refreshWorkHint(){
+  if(!SERVER) return;
+  try{
+    const [run,work]=await Promise.all([fetch('/api/run').then(r=>r.json()).catch(()=>({})),fetch('/api/work').then(r=>r.json()).catch(()=>({}))]);
+    if(DOC){
+      document.getElementById('sourceDirInput').value = '/path/to/media';
+      document.getElementById('briefInput').value = LANG==='ja' ? 'Tokyo travel vlog' : 'Tokyo travel vlog';
+      document.getElementById('durationInput').value = '60';
+      updateDurationLabel();
+      document.getElementById('workHint').textContent = '';
+      return;
+    }
+    document.getElementById('sourceDirInput').value ||= run.sourceDir || '';
+    document.getElementById('briefInput').value ||= run.brief || '';
+    if(run.targetDuration) document.getElementById('durationInput').value = run.targetDuration;
+    updateDurationLabel();
+    document.getElementById('workHint').textContent = work.work ? `${tx('currentWork')}: ${work.work}` : '';
+  }catch(e){}
+}
+refreshWorkHint();
+
+document.getElementById('pickFolderBtn').addEventListener('click',async()=>{
+  setStatus('');
+  try{
+    const r=await fetch('/api/pick-folder',{method:'POST'});
+    const j=await r.json();
+    if(!r.ok||j.error) throw new Error(j.error||r.status);
+    document.getElementById('sourceDirInput').value=j.folder;
+  }catch(err){setStatus(`${tx('pickFolderFailed')}: ${err.message}`,true);}
+});
+
+document.getElementById('scanForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const sourceDir=document.getElementById('sourceDirInput').value.trim();
+  if(!sourceDir) return;
+  const brief=document.getElementById('briefInput').value.trim();
+  const targetDuration=Number(document.getElementById('durationInput').value)||0;
+  setScanBusy(true);
+  setStatus(tx('startingScan'));
+  try{
+    const r=await fetch('/api/start-scan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceDir,brief,targetDuration,language:LANG})});
+    const j=await r.json();
+    if(!r.ok||j.error) throw new Error(j.error||r.status);
+    const u=new URL(location.href); u.searchParams.set('lang',LANG); location.href=u.toString();
+  }catch(err){setScanBusy(false);setStatus(`${tx('scanStartFailed')}: ${err.message}`,true);}
+});
+
 const SVGNS="http://www.w3.org/2000/svg";
 const mk=(n,a={})=>{const e=document.createElementNS(SVGNS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
 const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}.${String(Math.round(s%1*10))}`;
 const roleColor={hook:'#d8572a',intro:'#3a7d6e',build:'#c79a23',climax:'#b5396b',outro:'#5a6c9c'};
+const clipColor=(c,i)=>roleColor[c.role]||['#d8572a','#3a7d6e','#c79a23','#b5396b','#5a6c9c','#7d5fc7'][i%6];
 
-// ---- 构建模型 ----
-const seq=(DATA.sequence||[]).filter(s=>s.enabled!==false);
-let acc=0;
-const mainClips=seq.map((s,i)=>{const d=s.dur||((s.out||0)-(s.in||0))||2;const c={start:acc,dur:d,role:s.role,label:s.role,src:s.src,in:s.in||0,out:s.out!=null?s.out:(s.in||0)+d,thumb:s.thumb,rationale:s.rationale,transitionOut:s.transitionOut,_seq:i};acc+=d;return c;});
-const tracksDef=(DATA.tracks&&DATA.tracks.length)?DATA.tracks:[{id:"main",name:"本线",kind:"video",fromSequence:true}];
-const model=tracksDef.map(t=>{
-  if(t.kind==='video'||t.fromSequence) return {id:t.id,name:t.name,kind:'video',color:t.color,clips:mainClips};
-  if(t.kind==='arc') return {id:t.id,name:t.name,kind:'arc',color:t.color||'#d8572a',points:(t.points||[]).map(p=>({...p}))};
-  return {id:t.id,name:t.name,kind:t.kind,color:t.color,clips:(t.clips||[]).map(c=>({...c}))};
-});
-const music=DATA.music||{};
-const hasMusic=!!music.src;
+let seq=[], mainClips=[], tracksDef=[], model=[], music={}, hasMusic=false;
+let editorReady=false;
+
+function buildModel(data){
+  DATA=data||DATA;
+  seq=(DATA.sequence||[]).filter(s=>s.enabled!==false);
+  let acc=0;
+  mainClips=seq.map((s,i)=>{
+    const d=s.dur||((s.out||0)-(s.in||0))||2;
+    const label=s.label||s.rationale||s.title||'';
+    const c={start:acc,dur:d,role:s.role,label,src:s.src,in:s.in||0,out:s.out!=null?s.out:(s.in||0)+d,
+      thumb:s.thumb,thumbs:s.thumbs||(s.thumb?[s.thumb]:[]),rationale:s.rationale,transitionOut:s.transitionOut,_seq:i};
+    acc+=d;return c;
+  });
+  tracksDef=(DATA.tracks&&DATA.tracks.length)?DATA.tracks:[{id:"main",name:"本线",kind:"video",fromSequence:true}];
+  model=tracksDef.map(t=>{
+    if(t.kind==='video'||t.fromSequence) return {id:t.id,name:t.name,kind:'video',color:t.color,clips:mainClips};
+    if(t.kind==='arc') return {id:t.id,name:t.name,kind:'arc',color:t.color||'#d8572a',points:(t.points||[]).map(p=>({...p}))};
+    return {id:t.id,name:t.name,kind:t.kind,color:t.color,clips:(t.clips||[]).map(c=>({...c}))};
+  });
+  music=DATA.music||{};
+  hasMusic=!!music.src;
+  if(LANG!=='zh') model.forEach(t=>{ const n=trackName(t.name); if(n!==t.name) t.name=n; });
+}
+buildModel(DATA);
+const PROGRESS_MODE=(typeof window!=='undefined'&&window.__DRAFTCUT_PROGRESS__)||(!seq.length&&SERVER);
 
 function totalDur(){
   let m=mainClips.reduce((a,c)=>Math.max(a,c.start+c.dur),0);
