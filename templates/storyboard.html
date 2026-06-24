@@ -402,22 +402,24 @@ function totalDur(){
 }
 
 // ---- 头部 ----
-document.getElementById('brief').textContent='“'+(DATA.brief||'')+'”';
+displayBrief();
 function renderMeta(){
   const tot=mainClips.reduce((a,c)=>a+c.dur,0);
   document.getElementById('meta').innerHTML=
-    `<span>风格 <b>${DATA.style||'-'}</b></span><span>画幅 <b>${DATA.aspect||'-'}</b></span>`+
-    `<span>目标 <b>${DATA.targetDuration||'-'}s</b></span><span>本线 <b>${tot.toFixed(1)}s</b></span>`+
-    `<span>镜头 <b>${mainClips.length}</b> · 轨道 <b>${model.length}</b></span>`;
+    `<span>${tx('style')} <b>${DATA.style||'-'}</b></span><span>${tx('aspect')} <b>${DATA.aspect||'-'}</b></span>`+
+    `<span>${tx('target')} <b>${DATA.targetDuration||'-'}s</b></span><span>${tx('edit')} <b>${tot.toFixed(1)}s</b></span>`+
+    `<span>${tx('clips')} <b>${mainClips.length}</b> · ${tx('tracks')} <b>${model.length}</b></span>`;
 }
 renderMeta();
-(function(){const el=document.getElementById('music');
+function renderMusic(){const el=document.getElementById('music');
   if(!music||(!music.title&&!music.src)){el.style.display='none';return;}
+  el.style.display='flex';
   if(hasMusic){const sync=music.beatSync?` · 已卡点(每${music.beatSync.every||1}拍)`:'';
-    el.innerHTML=`<span class="tag">♪ 已加音乐</span><span><b>${(music.src||'').split('/').pop()}</b>${music.bpm?` · ${music.bpm} BPM`:''}${sync}</span><span class="cand">播放＝按拍同步预览（视频静音，点🔊听原片）</span>`;
+    el.innerHTML=`<span class="tag">♪ ${tx('musicAdded')}</span><span><b>${(music.src||'').split('/').pop()}</b>${music.bpm?` · ${music.bpm} BPM`:''}${sync?` · ${tx('beatSynced')}`:''}</span><span class="cand">${tx('musicPreview')}</span>`;
   } else {const cands=(music.candidates||[]).map(c=>`${c.title}${c.bpm?` · ${c.bpm}`:''}`).join(' / ');
-    el.innerHTML=`<span class="tag">♪ 推荐配乐</span><span><b>${music.title||'-'}</b>${music.bpm?` · ${music.bpm} BPM`:''}${music.mood?` · ${music.mood}`:''}</span>`+(cands?`<span class="cand">备选：${cands}</span>`:'')+`<span class="cand">（仅推荐，加音乐后可卡点）</span>`;}
-})();
+    el.innerHTML=`<span class="tag">♪ ${tx('musicSuggested')}</span><span><b>${music.title||'-'}</b>${music.bpm?` · ${music.bpm} BPM`:''}${music.mood?` · ${music.mood}`:''}</span>`+(cands?`<span class="cand">${tx('candidates')}：${cands}</span>`:'');}
+}
+renderMusic();
 
 // ---- 节拍条 ----
 const beatbar=document.getElementById('beatbar');
