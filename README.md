@@ -55,3 +55,42 @@ Also needs: `node`, `ffmpeg` / `ffprobe`, a multimodal API endpoint.
 > Use the DraftCut skill on `/path/to/footage` — brief: “Tokyo travel vlog, 60s”, target duration 60.
 
 The AI reads `SKILL.md`, confirms brief/duration and vision backend, runs scan → transcribe → analyze, writes `montage.json`, opens storyboard, exports on request.
+
+**Scripts only (no skill session)**
+
+```bash
+node scripts/run.mjs "/path/to/media" --brief "Tokyo travel vlog" --duration 60 --lang en --open
+node scripts/serve.mjs work --port 8793 --open
+```
+
+Keep API keys in `.env` only—never commit them. `.env` and `draftcut.config.json` are gitignored; use `.env.example` and `draftcut.config.example.json` as templates.
+
+---
+
+## 中文
+
+**DraftCut 是一个 AI Skill，不是单独的应用。** Skill 定义在 `SKILL.md` 里：教 AI agent 如何当你的剪辑助理——扫目录、理解素材、选风格、串片子、开 storyboard 微调、导出剪映 / FCPXML。**`scripts/`** 和网页是 skill 调用的工具；也可以手跑，但推荐用法是：**告诉 AI 素材路径 + brief，让 skill 跑完整流程**。
+
+适用于 **Cursor** 及一切能加载 skill 的 AI agent（和别的 AI skill 是同一套概念）。
+
+**不渲染成片**，只产出可导入 PR / 达芬奇 / 剪映的剪辑计划。
+
+![DraftCut skill 跑通后：扫描 → AI 理解 → 多轨编排 → 导出](docs/screenshots/storyboard-tokyo-timeline-en.png)
+
+### 用来干嘛
+
+- **素材多、还没开剪** — 旅行 / vlog / 探店 / 产品；AI 读内容并给剪辑方案
+- **口播 + 画面** — 转写 + 多模态，理解「讲什么、拍什么」
+- **人在 NLE 里精修** — `montage.json`、storyboard、工程文件
+
+### 产出什么
+
+| 部分 | 作用 |
+|------|------|
+| `SKILL.md` | **AI Skill 本体** — 阶段、规矩、何时问你 |
+| `work/shots.json` | 扫描（每素材最多 20 帧） |
+| `work/analysis.json` | AI 标题、摘要、叙事节点、高光 |
+| `work/montage.json` | 剪辑计划（中心契约） |
+| Web storyboard | 预览、拖拽、裁剪、保存、导出 |
+
+流程：`扫描 → 转写 → 分析 → 编排 → 完成`
