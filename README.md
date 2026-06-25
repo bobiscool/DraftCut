@@ -94,3 +94,34 @@ Keep API keys in `.env` only—never commit them. `.env` and `draftcut.config.js
 | Web storyboard | 预览、拖拽、裁剪、保存、导出 |
 
 流程：`扫描 → 转写 → 分析 → 编排 → 完成`
+
+### 安装
+
+1. 克隆本仓库。
+2. **把 skill 挂到你的 AI agent** — 例如在 Cursor 里把 `SKILL.md` 配成项目 skill，或复制到 agent 的 skills 目录。
+3. 首次配置：
+
+```bash
+cp .env.example .env
+cp draftcut.config.example.json draftcut.config.json
+# 在 .env 填多模态 API Key（如 QWEN_API_KEY）
+```
+
+另需：`node`、`ffmpeg` / `ffprobe`、多模态 API。
+
+### 怎么用
+
+**交给 AI（推荐）**
+
+> 用 DraftCut skill 处理 `/path/to/footage`，brief：「东京旅行 vlog，60 秒」，目标时长 60。
+
+AI 读 `SKILL.md`，确认 brief/时长和读帧后端，跑扫描 → 转写 → 分析，写 `montage.json`，按需开 storyboard、导出。
+
+**仅脚本（不用 skill 会话）**
+
+```bash
+node scripts/run.mjs "/path/to/media" --brief "东京旅行 vlog" --duration 60 --lang zh --open
+node scripts/serve.mjs work --port 8793 --open
+```
+
+API Key 只放 `.env`，勿提交。`.env` 与 `draftcut.config.json` 已在 `.gitignore`；公开仓库只用 `.env.example` / `draftcut.config.example.json` 作模板。
