@@ -434,52 +434,91 @@ function renderBeats(){
 }
 renderBeats();
 
-// ---- SVG 时间线 ----
+// ---- SVG 时间线（可缩放 + 横滚） ----
 const W=1100,PADL=10,GUT=86,plotL=PADL,RULER=24;
-const plotR=W-GUT-6, plotW=plotR-plotL;
+const BASE_PLOT_W=W-GUT-6-plotL;
 const svg=document.getElementById('tl');
+const tlScroll=document.getElementById('tlscroll');
 const laneH=k=>k==='video'?58:k==='arc'?72:34;
-let lanes=[], H=0, total=10;
-const t2x=t=>plotL+(t/total)*plotW;
+let lanes=[], H=0, total=10, tlZoom=1;
+function effPlotW(){return BASE_PLOT_W*tlZoom;}
+function effPlotR(){return plotL+effPlotW();}
+function effW(){return effPlotR()+GUT+6;}
+const t2x=t=>plotL+(t/total)*effPlotW();
 function trunc(s,w){const max=Math.max(1,Math.floor((w-10)/14));return s&&s.length>max?s.slice(0,max-1)+'…':(s||'');}
+
+function setZoom(z){
+  tlZoom=Math.max(1,Math.min(6,Math.round(z*100)/100));
+  document.getElementById('zoomSlider').value=tlZoom;
+  document.getElementById('zoomPct').textContent=Math.round(tlZoom*100)+'%';
+  render();
+}
+document.getElementById('zoomSlider').oninput=e=>setZoom(+e.target.value);
+document.getElementById('zoomOut').onclick=()=>setZoom(tlZoom-0.25);
+document.getElementById('zoomIn').onclick=()=>setZoom(tlZoom+0.25);
+tlScroll.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();setZoom(tlZoom+(e.deltaY<0?0.25:-0.25));}},{passive:false});
 
 function render(){
   total=totalDur();
   let y=RULER+8; lanes=model.map(t=>{const h=laneH(t.kind);const o={t,top:y,h};y+=h+8;return o;}); H=y+6;
-  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const vw=effW();
+  svg.setAttribute('viewBox',`0 0 ${vw} ${H}`);
+  svg.style.width=vw+'px';
   svg.innerHTML='';
-  // 时间标尺
   const ruler=mk('g',{filter:'url(#rough)'});
-  ruler.appendChild(mk('line',{x1:plotL,y1:RULER,x2:plotR,y2:RULER,stroke:'#3a342d','stroke-width':2}));
+  ruler.appendChild(mk('line',{x1:plotL,y1:RULER,x2:effPlotR(),y2:RULER,stroke:'#3a342d','stroke-width':2}));
   svg.appendChild(ruler);
   const step = total<=12?1:(total<=30?2:Math.ceil(total/12));
   for(let t=0;t<=total+1e-6;t+=step){const x=t2x(t);
     const tl=mk('line',{x1:x,y1:RULER-5,x2:x,y2:RULER,stroke:'#3a342d','stroke-width':2,filter:'url(#rough)'});svg.appendChild(tl);
     const lb=mk('text',{x:x+2,y:RULER-8,class:'rlab'});lb.textContent=t+'s';svg.appendChild(lb);}
-  // 各轨
   lanes.forEach(L=>{
-    // 轨底线 + 名称
-    svg.appendChild(mk('line',{x1:plotL,y1:L.top+L.h,x2:plotR,y2:L.top+L.h,stroke:'#3a342d','stroke-width':1.5,'stroke-opacity':.5,filter:'url(#rough)'}));
-    const nm=mk('text',{x:plotR+8,y:L.top+L.h/2+5,class:'tname'});nm.textContent=L.t.name;svg.appendChild(nm);
+    svg.appendChild(mk('line',{x1:plotL,y1:L.top+L.h,x2:effPlotR(),y2:L.top+L.h,stroke:'#3a342d','stroke-width':1.5,'stroke-opacity':.5,filter:'url(#rough)'}));
+    const nm=mk('text',{x:effPlotR()+8,y:L.top+L.h/2+5,class:'tname'});nm.textContent=L.t.name;svg.appendChild(nm);
     if(L.t.kind==='arc'){ drawArc(L); return; }
     (L.t.clips||[]).forEach((c,idx)=>drawClip(L,c,idx));
   });
-  // 播放头
   const ph=mk('line',{id:'phLine',x1:plotL,y1:RULER,x2:plotL,y2:H-6,stroke:'#d8572a','stroke-width':2,'stroke-dasharray':'4 3'});
   svg.appendChild(ph);
   renderBeats(); renderMeta();
 }
-function drawClip(L,c,idx){
-  const x=t2x(c.start), w=Math.max(8,(c.dur/total)*plotW);
-  const g=mk('g',{class:'clip','data-tid':L.t.id,'data-idx':idx});
-  const fill=L.t.kind==='video'?(roleColor[c.role]||'#7d5fc7'):(c.color||L.t.color||'#888');
-  g.appendChild(mk('rect',{x,y:L.top+4,width:w,height:L.h-8,rx:6,fill,'fill-opacity':.85,stroke:'#3a342d','stroke-width':2,filter:'url(#rough)'}));
-  if(L.t.kind==='video'&&c.thumb){const s=L.h-12;g.appendChild(mk('image',{href:c.thumb,x:x+3,y:L.top+6,width:Math.min(s,w-6),height:s,preserveAspectRatio:'xMidYMid slice'}));}
-  const tx=mk('text',{x:x+ (L.t.kind==='video'&&c.thumb?(L.h-4):8), y:L.top+L.h/2+5, class:'clab'});
-  tx.textContent=trunc(c.label||c.role||'', w-(L.t.kind==='video'&&c.thumb?(L.h-4):8));
+function drawFilmstrip(g,x,y,w,h,thumbs){
+  if(!thumbs||!thumbs.length)return;
+  const n=thumbs.length,tileW=Math.max(10,w/n);
+  thumbs.forEach((t,i)=>{
+    g.appendChild(mk('image',{href:mediaURL(t),x:x+1+i*tileW,y,width:Math.max(8,tileW-1),height:h,preserveAspectRatio:'xMidYMid slice'}));
+  });
+  g.appendChild(mk('rect',{x,y,width:w,height:h,fill:'none',stroke:'#3a342d','stroke-width':1,'stroke-opacity':.35}));
+}
+function drawClipTitle(g,x,y,w,text,{center=false,barH=15}={}){
+  if(!text||w<12)return;
+  const pad=5,bh=Math.min(barH,16);
+  const bw=Math.max(0,w-4);
+  g.appendChild(mk('rect',{x:x+2,y,width:bw,height:bh,rx:4,fill:'#1c1813','fill-opacity':.62}));
+  const tx=mk('text',{x:center?x+2+bw/2:x+pad+2,y:y+bh-3,class:'clab'+(center?' center':'')});
+  tx.textContent=trunc(text,bw-(center?4:pad*2));
   g.appendChild(tx);
-  // 右缘裁剪手柄
-  g.appendChild(mk('rect',{x:x+w-7,y:L.top+4,width:7,height:L.h-8,class:'handle',fill:'#000','fill-opacity':0,style:'cursor:ew-resize'}));
+}
+function drawClip(L,c,idx){
+  const x=t2x(c.start), w=Math.max(8,(c.dur/total)*effPlotW());
+  const g=mk('g',{class:'clip','data-tid':L.t.id,'data-idx':idx});
+  const fill=L.t.kind==='video'?clipColor(c,idx):(c.color||L.t.color||'#888');
+  const lab=c.label||c.rationale||'';
+  if(lab){const ttl=mk('title');ttl.textContent=lab;g.appendChild(ttl);}
+  const cy=L.top+4,ch=L.h-8;
+  g.appendChild(mk('rect',{x,y:cy,width:w,height:ch,rx:8,fill,'fill-opacity':L.t.kind==='video'?.72:.85,stroke:'#3a342d','stroke-width':2,filter:'url(#rough)'}));
+  if(L.t.kind==='video'){
+    const titleH=lab?15:0;
+    if(lab) drawClipTitle(g,x,cy+2,w,lab,{barH:titleH});
+    const stripY=cy+2+titleH, stripH=Math.max(10,ch-titleH-4);
+    const thumbs=c.thumbs&&c.thumbs.length?c.thumbs:(c.thumb?[c.thumb]:[]);
+    if(thumbs.length&&stripH>8) drawFilmstrip(g,x+2,stripY,w-4,stripH,thumbs);
+  } else if(lab){
+    const tx=mk('text',{x:x+w/2,y:cy+ch/2+5,class:'clab center'});
+    tx.textContent=trunc(lab,w-8);
+    g.appendChild(tx);
+  }
+  g.appendChild(mk('rect',{x:x+w-7,y:cy,width:7,height:ch,class:'handle',fill:'#000','fill-opacity':0,style:'cursor:ew-resize'}));
   svg.appendChild(g);
 }
 function drawArc(L){
