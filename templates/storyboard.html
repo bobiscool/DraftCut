@@ -532,82 +532,341 @@ function drawArc(L){
 }
 render();
 
+function setEditorVisibility(show){
+  const on=!!show && mainClips.length>0;
+  document.getElementById('tlToolbar').style.display=on?'flex':'none';
+  document.getElementById('tlscroll').style.display=on?'block':'none';
+  if(!DOC) document.getElementById('shots').style.display=on?'grid':'none';
+  document.querySelector('.controls').style.display=on?'flex':'none';
+  document.querySelector('.stage').style.display=on?'block':'none';
+  document.getElementById('beatbar').style.display=on&&beatEls.length?'block':'none';
+}
+function mountEditor(data){
+  buildModel(data);
+  displayBrief();
+  renderMeta();
+  renderMusic();
+  renderBeats(); render(); renderShots();
+  editorReady=true;
+  setEditorVisibility(true);
+}
+if(!PROGRESS_MODE) setEditorVisibility(mainClips.length>0);
+else setEditorVisibility(false);
+
+// ---- 镜头卡 ----
+const shotsEl=document.getElementById('shots');
+function renderShots(){
+  if(DOC) return;
+  shotsEl.innerHTML='';
+  mainClips.forEach((c,i)=>{
+    const card=document.createElement('div');card.className='shotcard';card.dataset.idx=i;
+    const col=roleColor[c.role]||'#7d5fc7';
+    const thumbStyle=c.thumb?`background-image:url('${mediaURL(c.thumb)}')`:'';
+    card.innerHTML=
+      `<div class="thumb" style="${thumbStyle}">`+
+        (c.thumb?'':`<span class="noimg">${tx('noImage')}</span>`)+
+        `<span class="badge" style="background:${col}">#${i+1}</span>`+
+        `<span class="tspan">${fmt(c.in)}→${fmt(c.out)} · ${c.dur.toFixed(1)}s</span>`+
+      `</div>`+
+      `<div class="desc"><span class="ord">#${i+1}</span>${displayText(c.rationale,'noDescription')}</div>`;
+    card.onclick=()=>jumpTo(i,true);
+    shotsEl.appendChild(card);
+  });
+}
+renderShots();
+function highlightCard(i){[...shotsEl.children].forEach((el,k)=>el.classList.toggle('playing',k===i));}
+
 // ---- 拖拽微调 ----
 let drag=null;
 svg.addEventListener('pointerdown',e=>{
   const g=e.target.closest('.clip'); if(!g) return;
+  e.preventDefault();
+  document.body.classList.add('dragging');
   const L=lanes.find(l=>l.t.id===g.dataset.tid); const c=L.t.clips[+g.dataset.idx];
-  drag={c,L,handle:e.target.classList.contains('handle'),x0:e.clientX,t0:c.start,d0:c.dur,moved:false};
+  drag={c,L,idx:+g.dataset.idx,handle:e.target.classList.contains('handle'),x0:e.clientX,t0:c.start,d0:c.dur,moved:false};
   svg.setPointerCapture(e.pointerId);
 });
 svg.addEventListener('pointermove',e=>{
   if(!drag) return;
+  e.preventDefault();
   const r=svg.getBoundingClientRect();
-  const dt=((e.clientX-drag.x0)*(W/r.width))/plotW*total;
+  const dt=((e.clientX-drag.x0)/r.width)*total;
   if(Math.abs(e.clientX-drag.x0)>3) drag.moved=true;
   if(drag.handle){ drag.c.dur=Math.max(0.2,Math.round((drag.d0+dt)*100)/100); }
-  else if(drag.L.t.kind!=='video'){ drag.c.start=Math.max(0,Math.round((drag.t0+dt)*100)/100); }
+  else { drag.c.start=Math.max(0,Math.round((drag.t0+dt)*100)/100); }
   if(drag.moved) render();
 });
+// 本线按 start 重排成无缝顺序（拖动改顺序后调用）
+function repackMain(){
+  const v=model.find(t=>t.kind==='video'); if(!v) return;
+  v.clips.sort((a,b)=>a.start-b.start);
+  let acc2=0; v.clips.forEach(c=>{c.start=acc2;acc2+=c.dur;});
+}
 svg.addEventListener('pointerup',e=>{
   if(!drag) return;
-  if(!drag.moved && drag.L.t.kind==='video') jumpTo(drag.c._seq);
-  if(drag.L.t.kind==='video'){ // 本线裁剪后回写 sequence 时长
-    const c=drag.c; const s=seq[c._seq]; if(s){ s.dur=c.dur; s.out=(s.in||0)+c.dur; }
+  document.body.classList.remove('dragging');
+  const wasVideo=drag.L.t.kind==='video', moved=drag.moved, c=drag.c;
+  if(!moved && wasVideo){ const idx=drag.idx; drag=null; document.body.classList.remove('dragging'); jumpTo(idx,true); return; }
+  if(wasVideo){
+    if(drag.handle){ const s=seq[c._seq]; if(s){ s.dur=c.dur; s.out=(s.in||0)+c.dur; } }
+    repackMain(); render(); renderShots();
   }
   drag=null;
 });
+svg.addEventListener('pointercancel',()=>{document.body.classList.remove('dragging');drag=null;});
+svg.addEventListener('selectstart',e=>{if(drag)e.preventDefault();});
 
-// ---- 导出 montage.json（回写微调） ----
-document.getElementById('exportBtn').onclick=()=>{
+// ---- 回写微调后的 montage（共享） ----
+function currentMontage(){
   const out=JSON.parse(JSON.stringify(DATA));
-  // 本线排序回写 sequence
   const mains=mainClips.slice().sort((a,b)=>a.start-b.start);
   out.sequence=mains.map((c,i)=>{const s=JSON.parse(JSON.stringify(seq[c._seq]));s.order=i+1;s.dur=c.dur;s.in=c.in;s.out=c.out;return s;});
-  // 其它轨回写
   out.tracks=tracksDef.map(td=>{const m=model.find(x=>x.id===td.id);if(!m)return td;
     if(m.kind==='video')return td;
     if(m.kind==='arc')return {...td,points:m.points};
     return {...td,clips:m.clips};});
-  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='montage.json';a.click();
+  return out;
+}
+const statusEl=document.getElementById('status');
+function setStatus(msg,err){statusEl.textContent=msg||'';statusEl.style.color=err?'#b5396b':'var(--accent2)';}
+
+// 服务模式: 保存回 work/montage.json；file:// 模式: 下载
+document.getElementById('exportBtn').onclick=async ()=>{
+  const out=currentMontage();
+  if(SERVER){
+    try{const r=await fetch('/api/montage',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(out)});
+      if(!r.ok)throw new Error(await r.text());setStatus(`${tx('saved')} → work/montage.json`);}
+    catch(e){setStatus(`${tx('saveFailed')}: `+e.message,true);}
+  } else {
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='montage.json';a.click();
+  }
 };
 
-// ---- 预览播放器（video / music 双模） ----
-const player=document.getElementById('player'),cap=document.getElementById('cap'),ph=document.getElementById('ph'),bgm=document.getElementById('bgm');
-let curIdx=-1, mode=hasMusic?'music':'video', raf=null, bgmReady=false;
-player.muted=(mode==='music');
+// 服务模式: 一键导出工程（先保存再导出）
+async function doExport(target,label){
+  setStatus(`${label} · ${tx('exporting')}…`);
+  try{
+    await fetch('/api/montage',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(currentMontage())});
+    const r=await fetch('/api/export?target='+target,{method:'POST'});
+    const j=await r.json();
+    if(!r.ok||j.error)throw new Error(j.error||r.status);
+    setStatus(`${label} · ${tx('exportDone')} → `+j.out);
+  }catch(e){setStatus(`${label} · ${tx('exportFailed')}: `+e.message,true);}
+}
+if(SERVER){
+  const ef=document.getElementById('expFcpxml'),ej=document.getElementById('expJy');
+  ef.hidden=false;ej.hidden=false;
+  document.getElementById('exportBtn').textContent=SERVER?tx('save'):tx('exportMontage');
+  ef.onclick=()=>doExport('fcpxml',tx('expFcpxml'));
+  ej.onclick=()=>doExport('jianying',tx('expJy'));
+}
+
+// ---- 预览播放器（双缓冲 video，减少切换闪屏） ----
+const playerA=document.getElementById('playerA'), playerB=document.getElementById('playerB');
+const cap=document.getElementById('cap'),ph=document.getElementById('ph'),vstack=document.getElementById('vstack'),bgm=document.getElementById('bgm');
+let activePlayer=playerA, idlePlayer=playerB, curIdx=-1, mode=hasMusic?'music':'video', raf=null, bgmReady=false;
+playerA.muted=playerB.muted=(mode==='music');
+
+function swapPlayers(){
+  activePlayer.classList.remove('active');
+  idlePlayer.classList.add('active');
+  const t=activePlayer; activePlayer=idlePlayer; idlePlayer=t;
+}
 function setPlayhead(pos){const l=document.getElementById('phLine');if(l){const x=t2x(Math.min(pos,total));l.setAttribute('x1',x);l.setAttribute('x2',x);}
   const p2=document.getElementById('ph2');if(p2)p2.style.left=(Math.min(pos,total)/total*100)+'%';
   let on=-1;for(let k=0;k<beatEls.length;k++){if(beatEls[k].t<=pos+0.06)on=k;else break;}beatEls.forEach((b,k)=>b.el.classList.toggle('on',k===on));}
-function showClip(i){const c=mainClips[i];if(!c)return;curIdx=i;
-  cap.innerHTML=`#${i+1} <b>${c.role}</b> · ${fmt(c.in)}→${fmt(c.out)} · ${c.rationale||''}`;
-  ph.style.display='none';player.style.display='block';
-  if(!c.src){onNoSrc(c);return;} player.src=c.src;player.dataset.in=c.in||0;player.load();}
-player.addEventListener('loadedmetadata',()=>{try{player.currentTime=Number(player.dataset.in||0);}catch(e){}player.play().catch(()=>{});});
-player.addEventListener('error',()=>onNoSrc(mainClips[curIdx]));
-function onNoSrc(c){player.style.display='none';ph.style.display='flex';ph.innerHTML='（样例：源文件 '+((c&&c.src)||'')+' 不存在，换成你的素材路径即可播放）';}
-player._chain=false;
-player.addEventListener('timeupdate',()=>{
-  if(mode!=='video'||curIdx<0)return;const c=mainClips[curIdx];
-  setPlayhead(c.start+(player.currentTime-(c.in||0)));
-  if(player.currentTime>=(c.out!=null?c.out:1e9)){ if(player._chain&&mainClips[curIdx+1])showClip(curIdx+1); else player.pause(); }
-});
+
+function showClip(i,opts={}){
+  const c=mainClips[i];if(!c)return;curIdx=i;
+  const title=displayText(c.label||c.rationale,'defaultBrief');
+  const note=displayText(c.rationale||'', 'noDescription');
+  cap.innerHTML=`#${i+1} <b>${title}</b> · ${fmt(c.in)}→${fmt(c.out)} · ${note}`;
+  vstack.style.display='block';ph.style.display='none';highlightCard(i);
+  if(!c.src){onNoSrc(c);return;}
+  const url=mediaURL(c.src);
+  const abs=new URL(url,location.href).href;
+  const inT=c.in||0;
+  const playAt=(p)=>{
+    p._switching=true;
+    const done=()=>{p._switching=false;};
+    const seekPlay=()=>{try{p.currentTime=inT;}catch(e){} p.play().catch(()=>{}); p.addEventListener('seeked',done,{once:true});};
+    if(p.readyState>=1) seekPlay();
+    else p.addEventListener('loadedmetadata',seekPlay,{once:true});
+  };
+  // 已在当前可见播放器上 → 直接 seek，不必换缓冲
+  if(activePlayer._curSrc===abs && activePlayer.readyState>=1){
+    playAt(activePlayer);
+    return;
+  }
+  // 已在后台缓冲里 → swap 后 seek（须先判断 _curSrc，不能先赋值再判 readyState）
+  const target=idlePlayer;
+  if(target._curSrc===abs && target.readyState>=1){
+    playAt(target);
+    swapPlayers();
+    idlePlayer.pause();
+    return;
+  }
+  // 新源：加载到 idle，就绪后 swap
+  target._switching=true;
+  const onReady=()=>{
+    target.removeEventListener('loadedmetadata',onReady);
+    target.removeEventListener('error',onErr);
+    target._curSrc=abs;
+    playAt(target);
+    swapPlayers();
+    idlePlayer.pause();
+  };
+  const onErr=()=>{target.removeEventListener('loadedmetadata',onReady);target._switching=false;onNoSrc(c);};
+  target.addEventListener('loadedmetadata',onReady);
+  target.addEventListener('error',onErr,{once:true});
+  target.src=url;
+}
+function onNoSrc(c){vstack.style.display='none';ph.style.display='flex';ph.innerHTML=`${tx('sourceMissing')}<br><small>${(c&&c.src)||''}</small>`;}
+let chainPlay=false;
+function bindTimeupdate(p){
+  p.addEventListener('timeupdate',()=>{
+    if(mode!=='video'||curIdx<0||p!==activePlayer)return;
+    if(p._switching||p.seeking)return;
+    const c=mainClips[curIdx];
+    setPlayhead(c.start+(p.currentTime-(c.in||0)));
+    if(p.currentTime>=(c.out!=null?c.out:1e9)){
+      if(chainPlay&&mainClips[curIdx+1]) showClip(curIdx+1);
+      else p.pause();
+    }
+  });
+  p.addEventListener('error',()=>{if(p===activePlayer)onNoSrc(mainClips[curIdx]);});
+}
+bindTimeupdate(playerA); bindTimeupdate(playerB);
+
 function tick(){if(mode!=='music')return;const pos=bgm.currentTime;setPlayhead(pos);
   let i=mainClips.findIndex(c=>pos>=c.start&&pos<c.start+c.dur);if(i>=0&&i!==curIdx)showClip(i);
   if(pos>=total){stopAll();return;}raf=requestAnimationFrame(tick);}
-function playAll(){if(mode==='music'&&bgmReady){showClip(0);bgm.currentTime=0;bgm.play().catch(()=>{});cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}
-  else{mode='video';player.muted=false;player._chain=true;showClip(0);}}
-function jumpTo(i){document.querySelector('.stage').scrollIntoView({behavior:'smooth',block:'center'});
-  if(mode==='music'&&bgmReady){bgm.currentTime=mainClips[i].start;if(bgm.paused){bgm.play().catch(()=>{});cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}showClip(i);}
-  else{player._chain=false;showClip(i);}}
-function stopAll(){player.pause();bgm.pause();cancelAnimationFrame(raf);}
+function playAll(){if(mode==='music'&&bgmReady){chainPlay=true;showClip(0);bgm.currentTime=0;bgm.play().catch(()=>{});cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}
+  else{mode='video';playerA.muted=playerB.muted=false;chainPlay=true;showClip(0);}}
+function jumpTo(i,scroll){
+  chainPlay=false;
+  if(mode==='music'&&bgmReady){
+    bgm.currentTime=mainClips[i].start;
+    if(bgm.paused){bgm.play().catch(()=>{});cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}
+  }
+  showClip(i);
+  if(scroll)document.querySelector('.stage').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function stopAll(){chainPlay=false;playerA.pause();playerB.pause();bgm.pause();cancelAnimationFrame(raf);}
 document.getElementById('playAll').onclick=playAll;
 document.getElementById('stop').onclick=stopAll;
 const audBtn=document.getElementById('audBtn');if(!hasMusic)audBtn.style.display='none';
-audBtn.onclick=()=>{mode=(mode==='music')?'video':'music';player.muted=(mode==='music');bgm.muted=(mode!=='music');audBtn.textContent=(mode==='music')?'🎵 听音乐':'🔊 听原片';};
-if(hasMusic){bgm.src=music.src;bgm.addEventListener('canplay',()=>{bgmReady=true;});bgm.addEventListener('error',()=>{bgmReady=false;});}
-player.style.display='none';ph.style.display='flex';
+audBtn.onclick=()=>{mode=(mode==='music')?'video':'music';playerA.muted=playerB.muted=(mode==='music');bgm.muted=(mode!=='music');audBtn.textContent=(mode==='music')?tx('audMusic'):tx('audVideo');};
+if(hasMusic){bgm.src=mediaURL(music.src);bgm.addEventListener('canplay',()=>{bgmReady=true;});bgm.addEventListener('error',()=>{bgmReady=false;});}
+vstack.style.display='none';ph.style.display='flex';
+
+// ---- 实时状态（serve 模式：从启动起展示解析/编排进度） ----
+(function liveUI(){
+  if(!SERVER&&!LIVE) return;
+  const liveEl=document.getElementById('liveStatus');
+  const stepsEl=document.getElementById('liveSteps');
+  const liveMsg=document.getElementById('liveMsg');
+  const panel=document.getElementById('progressPanel');
+  const progTitle=document.getElementById('progTitle');
+  const msgEl=document.getElementById('progMsg'), barEl=document.getElementById('progBar'), logEl=document.getElementById('progLog'), gridEl=document.getElementById('assetGrid');
+  liveEl.hidden=false;
+  const STEP_IDS=['scan','transcribe','read','seq','draw'];
+  const order=STEP_IDS;
+  function stepSub(id){
+    const m={scan:'phase_scan',transcribe:'phase_transcribe',read:'phase_read',seq:'phase_seq',draw:'phase_draw'};
+    return tx(m[id]||id);
+  }
+  function refreshSteps(){
+    stepsEl.innerHTML=STEP_IDS.map((id,i)=>`<span class="step" data-id="${id}">
+      <i>${i+1}</i><b>${tx(id)}</b><small>${stepSub(id)}</small>
+    </span>`).join('');
+  }
+  refreshSteps();
+
+  function pct(pr){
+    if(pr.totalFiles&&pr.fileIndex) return Math.round(pr.fileIndex/pr.totalFiles*100);
+    if(pr.totalBatches&&pr.batchIndex) return Math.round(pr.batchIndex/pr.totalBatches*100);
+    if(pr.shotsTotal&&pr.shotsDone!=null) return Math.round(pr.shotsDone/pr.shotsTotal*100);
+    return 0;
+  }
+  function phaseTitle(pr){
+    const m={scan:tx('phase_scan'),transcribe:tx('phase_transcribe'),read:tx('phase_read'),seq:tx('phase_seq'),style:tx('phase_style'),draw:tx('phase_draw'),export:tx('phase_export')};
+    return m[pr.phase]||pr.phase||'…';
+  }
+  function showProcessing(pr,hasMontage){
+    const busy=!hasMontage||['scan','transcribe','read','seq','style'].includes(pr.phase);
+    setScanBusy(['scan','transcribe','read','seq','style'].includes(pr.phase));
+    panel.hidden=!busy;
+    if(busy){
+      progTitle.textContent='⏳ '+phaseTitle(pr);
+      msgEl.textContent=translateMessage(pr.message)||phaseTitle(pr);
+      barEl.style.width=Math.min(100,pct(pr))+'%';
+      const detail=[pr.currentFile,pr.fileIndex&&pr.totalFiles?`${pr.fileIndex}/${pr.totalFiles}`:'',pr.batchIndex&&pr.totalBatches?`${LANG==='en'?'batch':LANG==='ja'?'バッチ':'批'} ${pr.batchIndex}/${pr.totalBatches}`:''].filter(Boolean).join(' · ');
+      logEl.textContent=[pr.visionLabel,detail].filter(Boolean).join(' · ');
+      setEditorVisibility(false);
+    } else {
+      setEditorVisibility(true);
+    }
+    const idx=order.indexOf(pr.phase);
+    [...stepsEl.children].forEach(el=>{
+      const i=order.indexOf(el.dataset.id);
+      el.classList.toggle('on',i===idx);
+      el.classList.toggle('done',i>=0&&idx>=0&&i<idx||pr.phase==='draw'||pr.phase==='export');
+    });
+    liveMsg.textContent=translateMessage(pr.message)||phaseTitle(pr);
+  }
+
+  let mounted=mainClips.length>0;
+  const demoProgress = {
+    scan: { phase:'scan', message:tx('msg_scan_start'), totalFiles:24, fileIndex:7, currentFile:'A001_roadtrip.mov' },
+    transcribe: { phase:'transcribe', message:tx('phase_transcribe'), totalFiles:24, fileIndex:14, currentFile:'interview_audio.mov' },
+    read: { phase:'read', message:tx('msg_read_vlm'), shotsTotal:24, shotsDone:16, visionLabel:'Qwen-VL' },
+    seq: { phase:'seq', message:tx('seq_updating'), totalBatches:4, batchIndex:3 },
+    draw: { phase:'draw', message:tx('ready') },
+  };
+  async function tick(){
+    try{
+      if(DEMO_PHASE){
+        const pr=demoProgress[DEMO_PHASE]||demoProgress.scan;
+        lastProgress=pr;
+        showProcessing(pr,DEMO_PHASE==='draw');
+        if(DEMO_PHASE==='draw') liveMsg.textContent=tx('ready');
+        return;
+      }
+      const [pr,an,mont,run]=await Promise.all([
+        fetch('/api/progress').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/analysis').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/montage').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/run').then(r=>r.json()).catch(()=>({})),
+      ]);
+      lastProgress=pr;
+      if(run.brief&&!DATA.brief){ DATA.brief=run.brief; displayBrief(); }
+      const hasMontage=(mont.sequence||[]).length>0;
+      showProcessing(pr,hasMontage);
+      const items=(an.assets||an.videos||an.shots||[]);
+      if(items.length){
+        gridEl.innerHTML=items.slice(-80).map(a=>{
+          const t=a.thumb||a.thumbs?.[0]||'';
+          const title=displayText(a.title||a.file||a.id||'','defaultBrief');
+          const sum=displayText((a.summary||'').slice(0,36),'noDescription');
+          return `<div class="a">${t?`<img src="${mediaURL(t)}" alt="">`:''}<span><b>${title}</b>${sum?' · '+sum:''}</span></div>`;
+        }).join('');
+      }
+      if(hasMontage&&!mounted){
+        mountEditor(mont);
+        mounted=true;
+        panel.hidden=true;
+        liveMsg.textContent=tx('ready');
+      } else if(hasMontage&&mounted&&pr.phase==='seq'){
+        liveMsg.textContent=pr.message||tx('seq_updating');
+      }
+      if(!URL_LANG&&run.language&&run.language!==LANG){ LANG=run.language; buildModel(DATA); applyI18n(); refreshSteps(); renderMeta(); render(); renderMusic(); renderShots(); }
+    }catch(e){}
+    setTimeout(tick,1500);
+  }
+  tick();
+})();
 </script>
 </body>
 </html>
