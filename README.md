@@ -33,3 +33,25 @@ Does **not** render a final MP4—delivers a plan you finish in Premiere, Final 
 | Web storyboard | Preview, drag, trim, save, export |
 
 Pipeline: `Scan → Transcribe → Analyze → Sequence → Done`
+
+### Install
+
+1. Clone this repo.
+2. **Load the skill** for your AI agent — e.g. in Cursor: add `SKILL.md` as a project skill, or copy/link it into your agent’s skills folder.
+3. Config once:
+
+```bash
+cp .env.example .env
+cp draftcut.config.example.json draftcut.config.json
+# Multimodal API key in .env (e.g. QWEN_API_KEY)
+```
+
+Also needs: `node`, `ffmpeg` / `ffprobe`, a multimodal API endpoint.
+
+### How to use
+
+**With AI (recommended)**
+
+> Use the DraftCut skill on `/path/to/footage` — brief: “Tokyo travel vlog, 60s”, target duration 60.
+
+The AI reads `SKILL.md`, confirms brief/duration and vision backend, runs scan → transcribe → analyze, writes `montage.json`, opens storyboard, exports on request.
