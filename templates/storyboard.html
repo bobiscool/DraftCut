@@ -398,7 +398,9 @@ const PROGRESS_MODE=(typeof window!=='undefined'&&window.__DRAFTCUT_PROGRESS__)|
 function totalDur(){
   let m=mainClips.reduce((a,c)=>Math.max(a,c.start+c.dur),0);
   model.forEach(t=>{(t.clips||[]).forEach(c=>m=Math.max(m,c.start+c.dur));(t.points||[]).forEach(p=>m=Math.max(m,p.t));});
-  return Math.max(m, DATA.targetDuration||0, 1);
+  // Scale the storyboard to the actual edit, not the requested target duration.
+  // Otherwise a 49s cut with a 60s target leaves a large empty tail in the SVG.
+  return Math.max(m, 1);
 }
 
 // ---- 头部 ----
